@@ -25,5 +25,6 @@ contextBridge.exposeInMainWorld('api', {
   removeTrackFromPlaylist: (listId, entityId) => ipcRenderer.invoke('db:removeTrackFromPlaylist', listId, entityId),
   removeTracksFromPlaylist: (listId, entityIds) => ipcRenderer.invoke('db:removeTracksFromPlaylist', listId, entityIds),
   removeFromCollection: (trackId) => ipcRenderer.invoke('db:removeFromCollection', trackId),
-  getWaveforms: (trackIds) => ipcRenderer.invoke('db:getWaveforms', trackIds)
+  getWaveforms: (trackIds) => ipcRenderer.invoke('db:getWaveforms', trackIds),
+  loadAudio: (filePath) => ipcRenderer.invoke('audio:load', filePath)
 })

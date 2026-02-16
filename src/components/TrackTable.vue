@@ -143,14 +143,17 @@ const playingTrackId = ref(null)
 let audioElement = null
 
 function buildTrackPath(track) {
-  const filePath = track.filePath || track.path || ''
+  let filePath = track.filePath || track.path || ''
   if (!filePath) return null
-  // Normalize: replace backslashes with forward slashes
-  let drive = props.musicDrive || 'D:\\'
-  // Ensure drive ends with separator
-  if (!drive.endsWith('/') && !drive.endsWith('\\')) drive += '/'
-  const fullPath = drive + filePath
-  return fullPath.replace(/\\/g, '/')
+  // Normalize separators to forward slashes
+  filePath = filePath.replace(/\\/g, '/')
+  // Strip leading ../ segments — the music drive is already the resolved root
+  while (filePath.startsWith('../')) filePath = filePath.substring(3)
+  while (filePath.startsWith('./')) filePath = filePath.substring(2)
+  let drive = (props.musicDrive || 'D:\\').replace(/\\/g, '/')
+  // Ensure drive ends with /
+  if (!drive.endsWith('/')) drive += '/'
+  return drive + filePath
 }
 
 function togglePlay(track) {
@@ -170,7 +173,9 @@ function togglePlay(track) {
     }
     const filePath = buildTrackPath(track)
     if (!filePath) return
-    audioElement = new Audio('local-audio:///' + encodeURI(filePath))
+    // Use custom protocol: local-audio://play/D:/path/to/file.mp3
+    const audioUrl = 'local-audio://play/' + encodeURI(filePath).replace(/#/g, '%23')
+    audioElement = new Audio(audioUrl)
     audioElement.addEventListener('ended', () => {
       playingTrackId.value = null
       audioElement = null
@@ -179,7 +184,7 @@ function togglePlay(track) {
       playingTrackId.value = null
       audioElement = null
     })
-    audioElement.play()
+    audioElement.play().catch(() => {})
     playingTrackId.value = track.trackId
   }
 }

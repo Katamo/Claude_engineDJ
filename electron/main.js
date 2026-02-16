@@ -1,8 +1,12 @@
-const { app, BrowserWindow, ipcMain, dialog, protocol } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, protocol, net } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const { registerDatabaseHandlers } = require('./database')
-const { pathToFileURL } = require('url')
+
+// Register custom scheme as privileged BEFORE app is ready
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'local-audio', privileges: { standard: true, stream: true, bypassCSP: true, supportFetchAPI: true } }
+])
 
 let mainWindow
 
@@ -66,16 +70,23 @@ function registerConfigHandlers() {
 }
 
 app.whenReady().then(() => {
-  // Register custom protocol to serve local audio files
+  // Register protocol handler to stream local audio files
   protocol.handle('local-audio', (request) => {
-    // URL format: local-audio:///D:/path/to/file.mp3
-    let filePath = decodeURIComponent(request.url.replace('local-audio:///', ''))
-    // On Windows, ensure backslashes
-    filePath = filePath.replace(/\//g, '\\')
-    // Remove leading backslash if drive letter follows (e.g. \D: -> D:)
-    if (filePath.match(/^\\[A-Za-z]:/)) filePath = filePath.substring(1)
-    return new Response(fs.createReadStream(filePath), {
-      headers: { 'Content-Type': filePath.endsWith('.flac') ? 'audio/flac' : 'audio/mpeg' }
+    // URL format: local-audio://play/D:/path/to/file.mp3
+    const url = new URL(request.url)
+    let filePath = decodeURIComponent(url.pathname)
+    // Remove leading slash on Windows (e.g. /D:/path -> D:/path)
+    if (filePath.match(/^\/[A-Za-z]:\//)) filePath = filePath.substring(1)
+    const absPath = filePath.replace(/\//g, '\\')
+    if (!fs.existsSync(absPath)) {
+      return new Response('File not found: ' + absPath, { status: 404 })
+    }
+    const data = fs.readFileSync(absPath)
+    const ext = path.extname(absPath).toLowerCase()
+    const mime = ext === '.flac' ? 'audio/flac' : ext === '.wav' ? 'audio/wav' : 'audio/mpeg'
+    return new Response(data, {
+      status: 200,
+      headers: { 'Content-Type': mime, 'Content-Length': String(data.length) }
     })
   })
 
