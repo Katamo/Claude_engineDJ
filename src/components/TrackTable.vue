@@ -234,14 +234,27 @@ function openEditDialog() {
 async function removeFromPlaylist() {
   const track = rowContextMenu.value.track
   const listId = props.listId
-  const entityId = track?.entityId
   closeRowContextMenu()
-  if (!track || listId == null || listId === -1 || entityId == null) return
+  if (!track || listId == null || listId === -1) return
+
+  // Collect entity IDs: if the right-clicked track is in the selection, remove all selected; otherwise just the one
+  const trackKey = track.entityId || track.trackId
+  const removeSelected = selectedTrackIds.value.has(trackKey) && selectedTrackIds.value.size > 1
   try {
-    await window.api.removeTrackFromPlaylist(listId, entityId)
+    if (removeSelected) {
+      const entityIds = sortedTracks.value
+        .filter(t => selectedTrackIds.value.has(t.entityId || t.trackId))
+        .map(t => t.entityId)
+        .filter(id => id != null)
+      await window.api.removeTracksFromPlaylist(listId, entityIds)
+      selectedTrackIds.value = new Set()
+    } else {
+      if (track.entityId == null) return
+      await window.api.removeTrackFromPlaylist(listId, track.entityId)
+    }
     emit('tracks-updated')
   } catch (err) {
-    console.error('Failed to remove track from playlist:', err)
+    console.error('Failed to remove track(s) from playlist:', err)
   }
 }
 
@@ -481,7 +494,7 @@ onUnmounted(() => {
         </div>
         <div v-if="listId && listId !== -1" class="context-menu-item context-menu-delete" @click="removeFromPlaylist">
           <span class="context-menu-icon">&#128465;</span>
-          <span>Remove from Playlist</span>
+          <span>{{ selectedTrackIds.size > 1 && selectedTrackIds.has(rowContextMenu.track?.entityId || rowContextMenu.track?.trackId) ? `Remove ${selectedTrackIds.size} tracks` : 'Remove from Playlist' }}</span>
         </div>
       </div>
     </Teleport>
