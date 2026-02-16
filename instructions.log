@@ -103,3 +103,5 @@
 50. allow row edit for multiselected rows, updating a cell in multiselected tracks will update the field in all the selected rows
 
 51. Allow column reorder in playlist view by drag&drop column titles
+
+52. update the key field ordering by ordering tracks by musical note
