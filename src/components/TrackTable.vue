@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import EditTrackDialog from './EditTrackDialog.vue'
 
 const props = defineProps({
@@ -16,6 +16,78 @@ const sortField = ref(null)
 const sortAsc = ref(true)
 const contextMenu = ref({ visible: false, x: 0, y: 0 })
 const rowContextMenu = ref({ visible: false, x: 0, y: 0, track: null })
+
+// --- Inline cell editing ---
+const editingCell = ref(null) // { trackId, colId }
+const editingValue = ref('')
+const cellInput = ref(null)
+
+const NON_EDITABLE = new Set(['position', 'trackId', 'entityId', 'databaseUuid'])
+
+// Map column IDs to DB field names
+const COL_TO_DB_FIELD = { filePath: 'path' }
+
+function onCellDblClick(track, colId) {
+  if (NON_EDITABLE.has(colId)) return
+  editingCell.value = { trackId: track.trackId, entityId: track.entityId, colId }
+  // Get the raw value for editing, not the formatted one
+  if (colId === 'key') {
+    editingValue.value = String(track.key ?? '')
+  } else if (colId === 'bpm') {
+    editingValue.value = String(track.bpmAnalyzed ?? (track.bpm ? (track.bpm / 100).toFixed(1) : ''))
+  } else if (colId === 'rating') {
+    editingValue.value = String(track.rating ?? '')
+  } else if (colId === 'length') {
+    editingValue.value = String(track.length ?? '')
+  } else {
+    editingValue.value = String(track[colId] ?? '')
+  }
+  nextTick(() => {
+    if (cellInput.value) {
+      cellInput.value.focus()
+      cellInput.value.select()
+    }
+  })
+}
+
+function isEditingCell(track, colId) {
+  return editingCell.value?.trackId === track.trackId && editingCell.value?.colId === colId
+}
+
+async function confirmCellEdit(track) {
+  if (!editingCell.value) return
+  const colId = editingCell.value.colId
+  const newVal = editingValue.value.trim()
+  editingCell.value = null
+  editingValue.value = ''
+
+  // Determine the DB field name
+  const dbField = COL_TO_DB_FIELD[colId] || colId
+
+  // Convert value appropriately
+  let dbVal = newVal
+  if (colId === 'bpm') {
+    dbVal = newVal ? Math.round(parseFloat(newVal) * 100) : null
+    await window.api.updateTrack(track.trackId, { bpm: dbVal, bpmAnalyzed: newVal ? parseFloat(newVal) : null })
+    emit('tracks-updated')
+    return
+  }
+  if (colId === 'rating' || colId === 'length' || colId === 'year' || colId === 'bitrate' || colId === 'key') {
+    dbVal = newVal ? Number(newVal) : null
+  }
+
+  try {
+    await window.api.updateTrack(track.trackId, { [dbField]: dbVal })
+    emit('tracks-updated')
+  } catch (err) {
+    console.error('Failed to update track:', err)
+  }
+}
+
+function cancelCellEdit() {
+  editingCell.value = null
+  editingValue.value = ''
+}
 const editTrack = ref(null)
 const showEditDialog = ref(false)
 const scrollContainer = ref(null)
@@ -543,8 +615,19 @@ onUnmounted(() => {
             class="track-td"
             :style="{ width: columnWidths[col.id] + 'px', textAlign: col.align, color: col.id === 'key' ? getKeyColor(track.key) : undefined }"
             :title="String(formatCell(track, col.id))"
+            @dblclick.stop="onCellDblClick(track, col.id)"
           >
-            {{ formatCell(track, col.id) }}
+            <input
+              v-if="isEditingCell(track, col.id)"
+              ref="cellInput"
+              v-model="editingValue"
+              class="cell-edit-input"
+              @keydown.enter.stop="confirmCellEdit(track)"
+              @keydown.escape.stop="cancelCellEdit"
+              @blur="confirmCellEdit(track)"
+              @click.stop
+            />
+            <template v-else>{{ formatCell(track, col.id) }}</template>
           </div>
         </div>
       </div>
