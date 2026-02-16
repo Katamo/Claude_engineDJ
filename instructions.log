@@ -81,3 +81,5 @@
 39. allow to add tracks to a playlist by drag and drop tracks from the list view to a playlist in the column view
 
 40. add a delete option in the playlist right click context menu
+
+41. lets make a release branch with the current features in develop, then merge to master, create a README.md file with the description and instructions to launch the app, use semver to label the release, this release will be the 0.1, create a file with the license. upload all the contents to this repo https://github.com/Katamo/Claude_engineDJ.git
