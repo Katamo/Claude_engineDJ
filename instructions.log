@@ -57,3 +57,15 @@
 27. yes merge it
 
 28. create a .log file with all the orders I send you to create that app from the beginning, only the orders I sent you, to store all the instructions to replicate that app
+
+29. remove the log rule to add instructions.log (from .gitignore)
+
+30. commit this to develop
+
+31. the tracks in a playlist should have an order different from the trackid, the track position in a playlist is set in the table playlist entity, listid is the id for the currentplaylist, and trackid is the id for the track beign stored on the playlist, every track in this list stores a pointer to the next song in the field nextEntityId
+
+32. yes merge it
+
+33. continue adding every instruction I send you to the instructions.log file
+
+34. add a custom track order on the playlist view to show the current track position instead of the id

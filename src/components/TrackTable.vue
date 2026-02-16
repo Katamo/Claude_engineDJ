@@ -25,7 +25,8 @@ const dropIndex = ref(null)
 const isDragging = ref(false)
 
 const ALL_COLUMNS = [
-  { id: 'trackId',        label: '#',              defaultWidth: 60,   align: 'left',  default: true },
+  { id: 'position',       label: '#',              defaultWidth: 50,   align: 'right', default: true },
+  { id: 'trackId',        label: 'Track ID',       defaultWidth: 70,   align: 'left',  default: false },
   { id: 'title',          label: 'Title',          defaultWidth: 280,  align: 'left',  default: true },
   { id: 'artist',         label: 'Artist',         defaultWidth: 200,  align: 'left',  default: true },
   { id: 'album',          label: 'Album',          defaultWidth: 180,  align: 'left',  default: true },
@@ -62,9 +63,11 @@ const KEY_MAP = {
   19: 'F', 20: 'G', 21: 'A', 22: 'B', 23: 'Db', 24: 'Eb'
 }
 
-function formatCell(track, colId) {
+function formatCell(track, colId, index) {
   const val = track[colId]
   switch (colId) {
+    case 'position':
+      return index + 1
     case 'trackId':
     case 'entityId':
       return val ?? ''
@@ -357,9 +360,9 @@ onUnmounted(() => {
             :key="col.id"
             class="track-td"
             :style="{ width: columnWidths[col.id] + 'px', textAlign: col.align }"
-            :title="String(formatCell(track, col.id))"
+            :title="String(formatCell(track, col.id, index))"
           >
-            {{ formatCell(track, col.id) }}
+            {{ formatCell(track, col.id, index) }}
           </div>
         </div>
       </div>
