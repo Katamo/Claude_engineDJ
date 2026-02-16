@@ -69,3 +69,5 @@
 33. continue adding every instruction I send you to the instructions.log file
 
 34. add a custom track order on the playlist view to show the current track position instead of the id
+
+35. allow track drag and drop reordering only when order by # id is selected

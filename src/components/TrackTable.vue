@@ -130,7 +130,8 @@ const sortedTracks = computed(() => {
 })
 
 // Drag reorder is only available when no custom sort is active
-const canDrag = computed(() => !sortField.value)
+// Drag reorder only when in default position order (no sort or sorted by position asc)
+const canDrag = computed(() => !sortField.value || (sortField.value === 'position' && sortAsc.value))
 
 function toggleSort(field) {
   if (sortField.value === field) {
