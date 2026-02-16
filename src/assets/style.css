@@ -434,6 +434,20 @@ html, body, #app {
   text-overflow: ellipsis;
   font-size: 12px;
   flex-shrink: 0;
+  position: relative;
+}
+
+.cell-edit-input {
+  width: 100%;
+  background: var(--bg-primary);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: 1px 4px;
+  outline: none;
+  font-family: inherit;
+  margin: -2px 0;
 }
 
 /* --- Column Context Menu --- */
