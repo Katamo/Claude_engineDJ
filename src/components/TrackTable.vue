@@ -276,6 +276,15 @@ const CAMELOT_COLORS = {
   '12': '#ff33cc', // Pink
 }
 
+// Sort weight for key column: ordered by Camelot number (1A, 1B, 2A, 2B, ... 12A, 12B)
+const KEY_SORT_WEIGHT = {}
+for (const [engineVal, camelot] of Object.entries(CAMELOT_MAP)) {
+  if (!camelot) { KEY_SORT_WEIGHT[engineVal] = 999; continue }
+  const num = parseInt(camelot.replace(/[AB]/, ''))
+  const letter = camelot.endsWith('A') ? 0 : 1
+  KEY_SORT_WEIGHT[engineVal] = num * 2 + letter
+}
+
 function getKeyColor(keyVal) {
   if (!keyVal) return null
   const camelot = CAMELOT_MAP[keyVal]
@@ -356,6 +365,11 @@ const sortedTracks = computed(() => {
   const field = sortField.value
   const dir = sortAsc.value ? 1 : -1
   return [...linkedListTracks.value].sort((a, b) => {
+    if (field === 'key') {
+      const wa = KEY_SORT_WEIGHT[a.key] ?? 999
+      const wb = KEY_SORT_WEIGHT[b.key] ?? 999
+      return (wa - wb) * dir
+    }
     const va = a[field] ?? ''
     const vb = b[field] ?? ''
     if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir
