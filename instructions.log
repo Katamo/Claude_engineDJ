@@ -89,3 +89,5 @@
 43. allow multiselect tracks in playlist view by shift or ctrl clicking, next allow drag&drop these group of selected tracks to another playlist
 
 44. add an option in contextual menu to remove track from a playlist
+
+45. allow to remove multiple selected tracks from a playlist
