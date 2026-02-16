@@ -64,23 +64,33 @@ async function confirmCellEdit(track) {
   // Determine the DB field name
   const dbField = COL_TO_DB_FIELD[colId] || colId
 
-  // Convert value appropriately
-  let dbVal = newVal
+  // Build the fields object
+  let fields
   if (colId === 'bpm') {
-    dbVal = newVal ? Math.round(parseFloat(newVal) * 100) : null
-    await window.api.updateTrack(track.trackId, { bpm: dbVal, bpmAnalyzed: newVal ? parseFloat(newVal) : null })
-    emit('tracks-updated')
-    return
-  }
-  if (colId === 'rating' || colId === 'length' || colId === 'year' || colId === 'bitrate' || colId === 'key') {
-    dbVal = newVal ? Number(newVal) : null
+    fields = { bpm: newVal ? Math.round(parseFloat(newVal) * 100) : null, bpmAnalyzed: newVal ? parseFloat(newVal) : null }
+  } else if (colId === 'rating' || colId === 'length' || colId === 'year' || colId === 'bitrate' || colId === 'key') {
+    fields = { [dbField]: newVal ? Number(newVal) : null }
+  } else {
+    fields = { [dbField]: newVal }
   }
 
+  // Determine which tracks to update
+  const trackKey = track.entityId || track.trackId
+  const updateSelected = selectedTrackIds.value.has(trackKey) && selectedTrackIds.value.size > 1
+  const trackIds = updateSelected
+    ? sortedTracks.value
+        .filter(t => selectedTrackIds.value.has(t.entityId || t.trackId))
+        .map(t => t.trackId)
+        .filter(id => id != null)
+    : [track.trackId]
+
   try {
-    await window.api.updateTrack(track.trackId, { [dbField]: dbVal })
+    for (const id of trackIds) {
+      await window.api.updateTrack(id, fields)
+    }
     emit('tracks-updated')
   } catch (err) {
-    console.error('Failed to update track:', err)
+    console.error('Failed to update track(s):', err)
   }
 }
 
