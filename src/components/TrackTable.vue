@@ -22,7 +22,7 @@ const editingCell = ref(null) // { trackId, colId }
 const editingValue = ref('')
 const cellInput = ref(null)
 
-const NON_EDITABLE = new Set(['position', 'trackId', 'entityId', 'databaseUuid'])
+const NON_EDITABLE = new Set(['position', 'preview', 'trackId', 'entityId', 'databaseUuid'])
 
 // Map column IDs to DB field names
 const COL_TO_DB_FIELD = { filePath: 'path' }
@@ -143,6 +143,7 @@ const isDragging = ref(false)
 
 const ALL_COLUMNS = [
   { id: 'position',       label: '#',              defaultWidth: 50,   align: 'right', default: true },
+  { id: 'preview',        label: 'Preview',        defaultWidth: 60,   align: 'center', default: true },
   { id: 'trackId',        label: 'Track ID',       defaultWidth: 70,   align: 'left',  default: false },
   { id: 'title',          label: 'Title',          defaultWidth: 280,  align: 'left',  default: true },
   { id: 'artist',         label: 'Artist',         defaultWidth: 200,  align: 'left',  default: true },
@@ -320,6 +321,8 @@ function formatCell(track, colId) {
   switch (colId) {
     case 'position':
       return positionMap.value.get(track.entityId) ?? ''
+    case 'preview':
+      return ''
     case 'trackId':
     case 'entityId':
       return val ?? ''
