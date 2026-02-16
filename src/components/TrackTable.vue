@@ -142,8 +142,11 @@ const sortedTracks = computed(() => {
   })
 })
 
-// Drag reorder only when in linked-list position order (default or position ascending)
-const canDrag = computed(() => !sortField.value || (sortField.value === 'position' && sortAsc.value))
+// Drag reorder only when in linked-list position order and not in Collection view
+const canDrag = computed(() => {
+  if (props.listId === -1) return false
+  return !sortField.value || (sortField.value === 'position' && sortAsc.value)
+})
 
 function toggleSort(field) {
   if (sortField.value === field) {
