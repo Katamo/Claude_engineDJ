@@ -231,6 +231,18 @@ function openEditDialog() {
   closeRowContextMenu()
 }
 
+async function removeFromPlaylist() {
+  const track = rowContextMenu.value.track
+  closeRowContextMenu()
+  if (!track || props.listId === -1) return
+  try {
+    await window.api.removeTrackFromPlaylist(props.listId, track.entityId)
+    emit('tracks-updated')
+  } catch (err) {
+    console.error('Failed to remove track from playlist:', err)
+  }
+}
+
 function onEditSaved() {
   showEditDialog.value = false
   editTrack.value = null
@@ -464,6 +476,10 @@ onUnmounted(() => {
         <div class="context-menu-item" @click="openEditDialog">
           <span class="context-menu-icon">&#9998;</span>
           <span>Edit Track</span>
+        </div>
+        <div v-if="listId !== -1" class="context-menu-item context-menu-delete" @click="removeFromPlaylist">
+          <span class="context-menu-icon">&#128465;</span>
+          <span>Remove from Playlist</span>
         </div>
       </div>
     </Teleport>

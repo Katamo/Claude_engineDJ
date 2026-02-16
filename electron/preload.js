@@ -21,5 +21,6 @@ contextBridge.exposeInMainWorld('api', {
   deletePlaylist: (playlistId) => ipcRenderer.invoke('db:deletePlaylist', playlistId),
   renamePlaylist: (playlistId, newTitle) => ipcRenderer.invoke('db:renamePlaylist', playlistId, newTitle),
   movePlaylist: (playlistId, newParentId) => ipcRenderer.invoke('db:movePlaylist', playlistId, newParentId),
-  reorderPlaylists: (parentListId, orderedIds) => ipcRenderer.invoke('db:reorderPlaylists', parentListId, orderedIds)
+  reorderPlaylists: (parentListId, orderedIds) => ipcRenderer.invoke('db:reorderPlaylists', parentListId, orderedIds),
+  removeTrackFromPlaylist: (listId, entityId) => ipcRenderer.invoke('db:removeTrackFromPlaylist', listId, entityId)
 })
