@@ -236,9 +236,14 @@ async function removeFromPlaylist() {
   const listId = props.listId
   const entityId = track?.entityId
   closeRowContextMenu()
-  if (!track || !listId || listId === -1 || !entityId) return
+  console.log('removeFromPlaylist:', { listId, entityId, track: track?.title })
+  if (!track || listId == null || listId === -1 || entityId == null) {
+    console.warn('removeFromPlaylist aborted:', { hasTrack: !!track, listId, entityId })
+    return
+  }
   try {
-    await window.api.removeTrackFromPlaylist(listId, entityId)
+    const result = await window.api.removeTrackFromPlaylist(listId, entityId)
+    console.log('removeFromPlaylist result:', result)
     emit('tracks-updated')
   } catch (err) {
     console.error('Failed to remove track from playlist:', err)
