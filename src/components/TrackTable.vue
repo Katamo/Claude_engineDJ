@@ -118,7 +118,13 @@ const linkedListTracks = computed(() => {
 })
 
 const sortedTracks = computed(() => {
-  if (!sortField.value) return linkedListTracks.value
+  // Position sort = linked list order (asc) or reversed (desc)
+  if (!sortField.value || sortField.value === 'position') {
+    if (sortField.value === 'position' && !sortAsc.value) {
+      return [...linkedListTracks.value].reverse()
+    }
+    return linkedListTracks.value
+  }
   const field = sortField.value
   const dir = sortAsc.value ? 1 : -1
   return [...linkedListTracks.value].sort((a, b) => {
@@ -129,8 +135,7 @@ const sortedTracks = computed(() => {
   })
 })
 
-// Drag reorder is only available when no custom sort is active
-// Drag reorder only when in default position order (no sort or sorted by position asc)
+// Drag reorder only when in linked-list position order (default or position ascending)
 const canDrag = computed(() => !sortField.value || (sortField.value === 'position' && sortAsc.value))
 
 function toggleSort(field) {
