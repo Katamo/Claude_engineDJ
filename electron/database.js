@@ -239,6 +239,11 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
   ipcMain.handle('db:reorderPlaylists', async (_event, parentListId, orderedIds) => {
     await ensureInit()
     const d = ensureDb()
+    // First reset all to temp values to avoid UNIQUE constraint conflicts
+    for (let i = 0; i < orderedIds.length; i++) {
+      d.run('UPDATE Playlist SET nextListId = ? WHERE id = ?', [-(i + 1000), orderedIds[i]])
+    }
+    // Then set the correct order
     for (let i = 0; i < orderedIds.length; i++) {
       const id = orderedIds[i]
       const nextId = i < orderedIds.length - 1 ? orderedIds[i + 1] : 0
@@ -269,25 +274,30 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
     }
 
     const oldParentId = playlist.parentListId
+    if (oldParentId === newParentId) return { success: true } // already in target
 
-    // Find the tail in the new parent BEFORE making changes
-    const newSiblings = queryAll('SELECT id, nextListId FROM Playlist WHERE parentListId = ? AND id != ?', [newParentId, playlistId])
+    // Gather info before making changes
+    const oldSiblings = queryAll('SELECT id, nextListId FROM Playlist WHERE parentListId = ?', [oldParentId])
+    const prevSibling = oldSiblings.find(s => s.nextListId === playlistId)
+
+    const newSiblings = queryAll('SELECT id, nextListId FROM Playlist WHERE parentListId = ?', [newParentId])
     const newSiblingIds = new Set(newSiblings.map(s => s.id))
     const newTail = newSiblings.find(s => !s.nextListId || s.nextListId === 0 || !newSiblingIds.has(s.nextListId))
 
-    // Step 1: Remove from old parent's linked list
-    const oldSiblings = queryAll('SELECT id, nextListId FROM Playlist WHERE parentListId = ?', [oldParentId])
-    const prevSibling = oldSiblings.find(s => s.nextListId === playlistId)
+    // Step 1: Detach playlist to temp state to avoid UNIQUE constraint conflicts
+    d.run('UPDATE Playlist SET parentListId = -999, nextListId = -999 WHERE id = ?', [playlistId])
+
+    // Step 2: Fix old parent's linked list
     if (prevSibling) {
       d.run('UPDATE Playlist SET nextListId = ? WHERE id = ?', [playlist.nextListId || 0, prevSibling.id])
     }
 
-    // Step 2: Update the new tail to point to the moved playlist (must happen before setting nextListId=0 on moved playlist to avoid unique constraint)
+    // Step 3: Update new parent's tail to point to moved playlist
     if (newTail) {
       d.run('UPDATE Playlist SET nextListId = ? WHERE id = ?', [playlistId, newTail.id])
     }
 
-    // Step 3: Move playlist to new parent with nextListId = 0 (it's now the tail)
+    // Step 4: Place playlist in new parent as the new tail
     d.run('UPDATE Playlist SET parentListId = ?, nextListId = 0 WHERE id = ?', [newParentId, playlistId])
 
     saveDatabase()
