@@ -339,6 +339,14 @@ html, body, #app {
   color: var(--accent);
 }
 
+.track-th.col-dragging {
+  opacity: 0.4;
+}
+
+.track-th.col-drop-target {
+  border-left: 2px solid var(--accent);
+}
+
 .th-label {
   pointer-events: none;
 }
