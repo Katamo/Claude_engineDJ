@@ -258,6 +258,20 @@ async function removeFromPlaylist() {
   }
 }
 
+async function removeFromCollection() {
+  const track = rowContextMenu.value.track
+  closeRowContextMenu()
+  if (!track || track.trackId == null) return
+  if (!confirm(`Permanently remove "${track.title || 'this track'}" from the collection and all playlists?`)) return
+  try {
+    await window.api.removeFromCollection(track.trackId)
+    selectedTrackIds.value = new Set()
+    emit('tracks-updated')
+  } catch (err) {
+    console.error('Failed to remove track from collection:', err)
+  }
+}
+
 function onEditSaved() {
   showEditDialog.value = false
   editTrack.value = null
@@ -495,6 +509,10 @@ onUnmounted(() => {
         <div v-if="listId && listId !== -1" class="context-menu-item context-menu-delete" @click="removeFromPlaylist">
           <span class="context-menu-icon">&#128465;</span>
           <span>{{ selectedTrackIds.size > 1 && selectedTrackIds.has(rowContextMenu.track?.entityId || rowContextMenu.track?.trackId) ? `Remove ${selectedTrackIds.size} tracks` : 'Remove from Playlist' }}</span>
+        </div>
+        <div class="context-menu-item context-menu-delete" @click="removeFromCollection">
+          <span class="context-menu-icon">&#10060;</span>
+          <span>Remove from Collection</span>
         </div>
       </div>
     </Teleport>
