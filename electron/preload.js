@@ -1,0 +1,23 @@
+const { contextBridge, ipcRenderer } = require('electron')
+
+contextBridge.exposeInMainWorld('api', {
+  getAllTracks: () => ipcRenderer.invoke('db:getAllTracks'),
+  getPlaylists: () => ipcRenderer.invoke('db:getPlaylists'),
+  getPlaylistTracks: (listId) => ipcRenderer.invoke('db:getPlaylistTracks', listId),
+  searchPlaylists: (query) => ipcRenderer.invoke('db:searchPlaylists', query),
+  getTrack: (trackId) => ipcRenderer.invoke('db:getTrack', trackId),
+  getStats: () => ipcRenderer.invoke('db:getStats'),
+  getDatabases: () => ipcRenderer.invoke('db:getDatabases'),
+  switchDatabase: (dbFile) => ipcRenderer.invoke('db:switchDatabase', dbFile),
+  setDbPath: (path) => ipcRenderer.invoke('db:setPath', path),
+  getDbPath: () => ipcRenderer.invoke('db:getPath'),
+  getConfig: () => ipcRenderer.invoke('config:get'),
+  saveConfig: (config) => ipcRenderer.invoke('config:save', config),
+  selectFolder: () => ipcRenderer.invoke('config:selectFolder'),
+  updateTrack: (trackId, fields) => ipcRenderer.invoke('db:updateTrack', trackId, fields),
+  reorderPlaylistEntities: (listId, orderedEntityIds) => ipcRenderer.invoke('db:reorderPlaylistEntities', listId, orderedEntityIds),
+  createPlaylist: (title, parentListId) => ipcRenderer.invoke('db:createPlaylist', title, parentListId),
+  renamePlaylist: (playlistId, newTitle) => ipcRenderer.invoke('db:renamePlaylist', playlistId, newTitle),
+  movePlaylist: (playlistId, newParentId) => ipcRenderer.invoke('db:movePlaylist', playlistId, newParentId),
+  reorderPlaylists: (parentListId, orderedIds) => ipcRenderer.invoke('db:reorderPlaylists', parentListId, orderedIds)
+})
