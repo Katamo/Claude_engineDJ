@@ -61,6 +61,30 @@ function queryOne(sql, params = []) {
   return result
 }
 
+function processWaveformBlob(blob) {
+  if (!blob || blob.length < 5) return null
+  try {
+    // Skip 4-byte header, then decompress zlib data
+    const compressed = Buffer.from(blob.buffer || blob).slice(4)
+    const decompressed = zlib.inflateSync(compressed)
+    const entryCount = Math.floor(decompressed.length / 3)
+    // Downsample to ~60 bars for the small preview
+    const targetBars = 60
+    const step = Math.max(1, Math.floor(entryCount / targetBars))
+    const bars = []
+    for (let i = 0; i < entryCount && bars.length < targetBars; i += step) {
+      const offset = i * 3
+      const low = decompressed[offset] || 0
+      const mid = decompressed[offset + 1] || 0
+      const high = decompressed[offset + 2] || 0
+      bars.push({ low, mid, high })
+    }
+    return bars
+  } catch (e) {
+    return null
+  }
+}
+
 function registerDatabaseHandlers(ipcMain, dbPath) {
   DB_DIR = dbPath
   let initialized = false
@@ -472,6 +496,21 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
 
     saveDatabase()
     return { success: true }
+  })
+
+  ipcMain.handle('db:getWaveforms', async (_event, trackIds) => {
+    await ensureInit()
+    const result = {}
+    for (const trackId of trackIds) {
+      try {
+        const row = queryOne('SELECT overviewWaveFormData FROM PerformanceData WHERE id = ?', [trackId])
+        if (row && row.overviewWaveFormData) {
+          const bars = processWaveformBlob(row.overviewWaveFormData)
+          if (bars) result[trackId] = bars
+        }
+      } catch (e) { /* PerformanceData table may not exist */ }
+    }
+    return result
   })
 
   ipcMain.handle('db:updateTrack', async (_event, trackId, fields) => {

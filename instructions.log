@@ -109,3 +109,5 @@
 53. make the column order width and visibility of fields persistent when close and reopen app
 
 54. add a Preview field next to #, atm it will be an empty field
+
+55. the table PerformanceData stores additional info about every track, overviewWaveFormData is a BLOB field that stores an image related to every track and is related to its waveform. Take that BLOB from overviewWaveFormData format it as an image and place it in the column 'Preview'

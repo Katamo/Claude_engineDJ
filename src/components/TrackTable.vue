@@ -1,6 +1,7 @@
 <script setup>
-import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, nextTick, watch, onMounted, onUnmounted } from 'vue'
 import EditTrackDialog from './EditTrackDialog.vue'
+import WaveformPreview from './WaveformPreview.vue'
 
 const props = defineProps({
   tracks: Array,
@@ -135,6 +136,26 @@ function onRowClick(e, track, index) {
 function isSelected(track) {
   return selectedTrackIds.value.has(track.entityId || track.trackId)
 }
+
+// --- Waveform data ---
+const waveformData = ref({})
+
+async function fetchWaveforms() {
+  if (!props.tracks || !props.tracks.length) {
+    waveformData.value = {}
+    return
+  }
+  const trackIds = [...new Set(props.tracks.map(t => t.trackId).filter(id => id != null))]
+  if (!trackIds.length) return
+  try {
+    const data = await window.api.getWaveforms(trackIds)
+    waveformData.value = data || {}
+  } catch (e) {
+    waveformData.value = {}
+  }
+}
+
+watch(() => props.tracks, fetchWaveforms, { immediate: true })
 
 // --- Drag and drop ---
 const dragIndex = ref(null)
@@ -734,6 +755,10 @@ onUnmounted(() => {
               @keydown.escape.stop="cancelCellEdit"
               @blur="confirmCellEdit(track)"
               @click.stop
+            />
+            <WaveformPreview
+              v-else-if="col.id === 'preview'"
+              :bars="waveformData[track.trackId] || null"
             />
             <template v-else>{{ formatCell(track, col.id) }}</template>
           </div>
