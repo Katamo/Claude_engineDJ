@@ -228,6 +228,40 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
     return { success: true }
   })
 
+  ipcMain.handle('db:deletePlaylist', async (_event, playlistId) => {
+    await ensureInit()
+    const d = ensureDb()
+
+    const playlist = queryOne('SELECT id, parentListId, nextListId FROM Playlist WHERE id = ?', [playlistId])
+    if (!playlist) return { success: false, error: 'Playlist not found' }
+
+    // Remove from parent's linked list
+    const siblings = queryAll('SELECT id, nextListId FROM Playlist WHERE parentListId = ?', [playlist.parentListId])
+    const prevSibling = siblings.find(s => s.nextListId === playlistId)
+
+    // Detach first to avoid UNIQUE constraint
+    d.run('UPDATE Playlist SET parentListId = -999, nextListId = -999 WHERE id = ?', [playlistId])
+
+    if (prevSibling) {
+      d.run('UPDATE Playlist SET nextListId = ? WHERE id = ?', [playlist.nextListId || 0, prevSibling.id])
+    }
+
+    // Move children to parent level
+    const children = queryAll('SELECT id FROM Playlist WHERE parentListId = ?', [playlistId])
+    for (const child of children) {
+      d.run('UPDATE Playlist SET parentListId = ? WHERE id = ?', [playlist.parentListId, child.id])
+    }
+
+    // Delete playlist entities
+    d.run('DELETE FROM PlaylistEntity WHERE listId = ?', [playlistId])
+
+    // Delete the playlist
+    d.run('DELETE FROM Playlist WHERE id = ?', [playlistId])
+
+    saveDatabase()
+    return { success: true }
+  })
+
   ipcMain.handle('db:renamePlaylist', async (_event, playlistId, newTitle) => {
     await ensureInit()
     const d = ensureDb()
@@ -239,6 +273,11 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
   ipcMain.handle('db:reorderPlaylists', async (_event, parentListId, orderedIds) => {
     await ensureInit()
     const d = ensureDb()
+    // First reset all to temp values to avoid UNIQUE constraint conflicts
+    for (let i = 0; i < orderedIds.length; i++) {
+      d.run('UPDATE Playlist SET nextListId = ? WHERE id = ?', [-(i + 1000), orderedIds[i]])
+    }
+    // Then set the correct order
     for (let i = 0; i < orderedIds.length; i++) {
       const id = orderedIds[i]
       const nextId = i < orderedIds.length - 1 ? orderedIds[i + 1] : 0
@@ -269,25 +308,30 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
     }
 
     const oldParentId = playlist.parentListId
+    if (oldParentId === newParentId) return { success: true } // already in target
 
-    // Find the tail in the new parent BEFORE making changes
-    const newSiblings = queryAll('SELECT id, nextListId FROM Playlist WHERE parentListId = ? AND id != ?', [newParentId, playlistId])
+    // Gather info before making changes
+    const oldSiblings = queryAll('SELECT id, nextListId FROM Playlist WHERE parentListId = ?', [oldParentId])
+    const prevSibling = oldSiblings.find(s => s.nextListId === playlistId)
+
+    const newSiblings = queryAll('SELECT id, nextListId FROM Playlist WHERE parentListId = ?', [newParentId])
     const newSiblingIds = new Set(newSiblings.map(s => s.id))
     const newTail = newSiblings.find(s => !s.nextListId || s.nextListId === 0 || !newSiblingIds.has(s.nextListId))
 
-    // Step 1: Remove from old parent's linked list
-    const oldSiblings = queryAll('SELECT id, nextListId FROM Playlist WHERE parentListId = ?', [oldParentId])
-    const prevSibling = oldSiblings.find(s => s.nextListId === playlistId)
+    // Step 1: Detach playlist to temp state to avoid UNIQUE constraint conflicts
+    d.run('UPDATE Playlist SET parentListId = -999, nextListId = -999 WHERE id = ?', [playlistId])
+
+    // Step 2: Fix old parent's linked list
     if (prevSibling) {
       d.run('UPDATE Playlist SET nextListId = ? WHERE id = ?', [playlist.nextListId || 0, prevSibling.id])
     }
 
-    // Step 2: Update the new tail to point to the moved playlist (must happen before setting nextListId=0 on moved playlist to avoid unique constraint)
+    // Step 3: Update new parent's tail to point to moved playlist
     if (newTail) {
       d.run('UPDATE Playlist SET nextListId = ? WHERE id = ?', [playlistId, newTail.id])
     }
 
-    // Step 3: Move playlist to new parent with nextListId = 0 (it's now the tail)
+    // Step 4: Place playlist in new parent as the new tail
     d.run('UPDATE Playlist SET parentListId = ?, nextListId = 0 WHERE id = ?', [newParentId, playlistId])
 
     saveDatabase()
@@ -317,6 +361,35 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
 
     saveDatabase()
     return { success: true, id: newId }
+  })
+
+  ipcMain.handle('db:addTrackToPlaylist', async (_event, listId, trackId, databaseUuid) => {
+    await ensureInit()
+    const d = ensureDb()
+
+    // Check if track already exists in this playlist
+    const existing = queryOne('SELECT id FROM PlaylistEntity WHERE listId = ? AND trackId = ? AND databaseUuid = ?', [listId, trackId, databaseUuid || ''])
+    if (existing) return { success: false, error: 'Track already in playlist' }
+
+    // Get next available entity ID
+    const maxId = queryOne('SELECT MAX(id) as maxId FROM PlaylistEntity').maxId || 0
+    const newId = maxId + 1
+
+    // Find the tail of this playlist's entity list
+    const entities = queryAll('SELECT id, nextEntityId FROM PlaylistEntity WHERE listId = ?', [listId])
+    const entityIds = new Set(entities.map(e => e.id))
+    const tail = entities.find(e => !e.nextEntityId || e.nextEntityId === 0 || !entityIds.has(e.nextEntityId))
+
+    // Insert new entity
+    d.run('INSERT INTO PlaylistEntity (id, listId, trackId, databaseUuid, nextEntityId, membershipReference) VALUES (?, ?, ?, ?, 0, 0)', [newId, listId, trackId, databaseUuid || ''])
+
+    // Update tail to point to new entity
+    if (tail) {
+      d.run('UPDATE PlaylistEntity SET nextEntityId = ? WHERE id = ?', [newId, tail.id])
+    }
+
+    saveDatabase()
+    return { success: true, entityId: newId }
   })
 
   ipcMain.handle('db:updateTrack', async (_event, trackId, fields) => {

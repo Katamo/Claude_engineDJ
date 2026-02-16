@@ -25,7 +25,8 @@ const dropIndex = ref(null)
 const isDragging = ref(false)
 
 const ALL_COLUMNS = [
-  { id: 'trackId',        label: '#',              defaultWidth: 60,   align: 'left',  default: true },
+  { id: 'position',       label: '#',              defaultWidth: 50,   align: 'right', default: true },
+  { id: 'trackId',        label: 'Track ID',       defaultWidth: 70,   align: 'left',  default: false },
   { id: 'title',          label: 'Title',          defaultWidth: 280,  align: 'left',  default: true },
   { id: 'artist',         label: 'Artist',         defaultWidth: 200,  align: 'left',  default: true },
   { id: 'album',          label: 'Album',          defaultWidth: 180,  align: 'left',  default: true },
@@ -65,6 +66,8 @@ const KEY_MAP = {
 function formatCell(track, colId) {
   const val = track[colId]
   switch (colId) {
+    case 'position':
+      return positionMap.value.get(track.entityId) ?? ''
     case 'trackId':
     case 'entityId':
       return val ?? ''
@@ -90,11 +93,48 @@ function formatCell(track, colId) {
   }
 }
 
+// Resolve linked-list order using nextEntityId
+const linkedListTracks = computed(() => {
+  const tracks = props.tracks
+  if (!tracks.length) return []
+  // Check if tracks have nextEntityId (playlist context)
+  const hasLinkedList = tracks.some(t => t.nextEntityId !== undefined && t.nextEntityId !== null)
+  if (!hasLinkedList) return tracks
+
+  const byId = new Map(tracks.map(t => [t.entityId, t]))
+  const nextIds = new Set(tracks.map(t => t.nextEntityId).filter(id => id > 0))
+  // First item is the one not referenced by any other's nextEntityId
+  let current = tracks.find(t => !nextIds.has(t.entityId))
+  const sorted = []
+  const visited = new Set()
+  while (current && !visited.has(current.entityId)) {
+    visited.add(current.entityId)
+    sorted.push(current)
+    current = current.nextEntityId > 0 ? byId.get(current.nextEntityId) : null
+  }
+  // Add any unlinked tracks at the end
+  tracks.forEach(t => { if (!visited.has(t.entityId)) sorted.push(t) })
+  return sorted
+})
+
+// Map entityId -> original playlist position (1-based)
+const positionMap = computed(() => {
+  const map = new Map()
+  linkedListTracks.value.forEach((t, i) => map.set(t.entityId, i + 1))
+  return map
+})
+
 const sortedTracks = computed(() => {
-  if (!sortField.value) return props.tracks
+  // Position sort = linked list order (asc) or reversed (desc)
+  if (!sortField.value || sortField.value === 'position') {
+    if (sortField.value === 'position' && !sortAsc.value) {
+      return [...linkedListTracks.value].reverse()
+    }
+    return linkedListTracks.value
+  }
   const field = sortField.value
   const dir = sortAsc.value ? 1 : -1
-  return [...props.tracks].sort((a, b) => {
+  return [...linkedListTracks.value].sort((a, b) => {
     const va = a[field] ?? ''
     const vb = b[field] ?? ''
     if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir
@@ -102,8 +142,11 @@ const sortedTracks = computed(() => {
   })
 })
 
-// Drag reorder is only available when no custom sort is active
-const canDrag = computed(() => !sortField.value)
+// Drag reorder only when in linked-list position order and not in Collection view
+const canDrag = computed(() => {
+  if (props.listId === -1) return false
+  return !sortField.value || (sortField.value === 'position' && sortAsc.value)
+})
 
 function toggleSort(field) {
   if (sortField.value === field) {
@@ -207,17 +250,21 @@ function onResizeEnd() {
 
 // --- Drag and drop reorder ---
 function onDragStart(e, index) {
-  if (!canDrag.value) {
-    e.preventDefault()
-    return
-  }
-  isDragging.value = true
-  dragIndex.value = index
+  const track = sortedTracks.value[index]
+  // Always set track data for cross-component drops (track → playlist)
+  e.dataTransfer.setData('application/track', JSON.stringify({
+    trackId: track.trackId,
+    databaseUuid: track.databaseUuid || ''
+  }))
   e.dataTransfer.effectAllowed = 'move'
-  e.dataTransfer.setData('text/plain', String(index))
-  // Make the drag image semi-transparent
-  if (e.target) {
-    e.target.style.opacity = '0.4'
+
+  if (canDrag.value) {
+    isDragging.value = true
+    dragIndex.value = index
+    e.dataTransfer.setData('text/plain', String(index))
+    if (e.target) {
+      e.target.style.opacity = '0.4'
+    }
   }
 }
 
@@ -316,7 +363,7 @@ onUnmounted(() => {
             { dragging: dragIndex === index, 'drag-enabled': canDrag }
           ]"
           :style="{ width: totalWidth + 'px' }"
-          :draggable="canDrag"
+          draggable="true"
           @dragstart="onDragStart($event, index)"
           @dragend="onDragEnd"
           @dragover="onDragOver($event, index)"

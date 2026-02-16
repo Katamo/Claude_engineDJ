@@ -69,6 +69,19 @@ async function createPlaylist(title) {
   }
 }
 
+async function deletePlaylist({ id }) {
+  try {
+    await window.api.deletePlaylist(id)
+    if (selectedPlaylist.value?.id === id) {
+      selectedPlaylist.value = null
+      tracks.value = []
+    }
+    await loadData()
+  } catch (err) {
+    console.error('Failed to delete playlist:', err)
+  }
+}
+
 async function renamePlaylist({ id, title }) {
   try {
     await window.api.renamePlaylist(id, title)
@@ -84,6 +97,21 @@ async function movePlaylist({ playlistId, newParentId }) {
     await loadData()
   } catch (err) {
     console.error('Failed to move playlist:', err)
+  }
+}
+
+async function addTrackToPlaylist({ listId, trackId, databaseUuid }) {
+  try {
+    const result = await window.api.addTrackToPlaylist(listId, trackId, databaseUuid)
+    if (!result.success) {
+      console.warn('Add track to playlist:', result.error)
+    }
+    // Refresh if viewing the target playlist
+    if (selectedPlaylist.value?.id === listId) {
+      await selectPlaylist(selectedPlaylist.value)
+    }
+  } catch (err) {
+    console.error('Failed to add track to playlist:', err)
   }
 }
 
@@ -139,6 +167,8 @@ onMounted(loadData)
           @reorder-playlists="reorderPlaylists"
           @rename-playlist="renamePlaylist"
           @move-playlist="movePlaylist"
+          @add-track-to-playlist="addTrackToPlaylist"
+          @delete-playlist="deletePlaylist"
         />
         <div class="main-content">
           <div v-if="selectedPlaylist" class="content-header">

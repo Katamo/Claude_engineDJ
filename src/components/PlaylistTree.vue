@@ -7,7 +7,7 @@ const props = defineProps({
   depth: { type: Number, default: 0 }
 })
 
-const emit = defineEmits(['select', 'reorder', 'rename', 'move'])
+const emit = defineEmits(['select', 'reorder', 'rename', 'move', 'add-track', 'delete'])
 
 const expandedIds = ref(new Set())
 const dragOverId = ref(null)
@@ -73,6 +73,15 @@ function cancelRename() {
   editingTitle.value = ''
 }
 
+function deletePlaylist() {
+  if (!contextMenu.value) return
+  const item = contextMenu.value
+  if (confirm(`Delete playlist "${item.title}"?`)) {
+    emit('delete', { id: item.id })
+  }
+  closeContextMenu()
+}
+
 function onDocClick(e) {
   closeContextMenu()
   if (editingId.value && renameInput.value && !renameInput.value.contains(e.target)) {
@@ -90,19 +99,30 @@ function onDragStart(e, item) {
   if (editingId.value) return
   draggingId.value = item.id
   e.dataTransfer.effectAllowed = 'move'
-  e.dataTransfer.setData('text/plain', JSON.stringify({
+  e.dataTransfer.setData('application/playlist', JSON.stringify({
     id: item.id,
     parentListId: item.parentListId
   }))
 }
 
+function isTrackDrag(e) {
+  return e.dataTransfer.types.includes('application/track')
+}
+
 function onDragOver(e, item) {
   e.preventDefault()
   e.dataTransfer.dropEffect = 'move'
+  dragOverId.value = item.id
+
+  if (isTrackDrag(e)) {
+    // Track drops always go "into" the playlist
+    dropPosition.value = 'into'
+    return
+  }
+
   const rect = e.currentTarget.getBoundingClientRect()
   const h = rect.height
   const y = e.clientY - rect.top
-  dragOverId.value = item.id
 
   // Top 25% = above, middle 50% = into, bottom 25% = below
   if (y < h * 0.25) {
@@ -123,7 +143,21 @@ function onDragLeave(e, item) {
 
 function onDrop(e, targetItem) {
   e.preventDefault()
-  const data = JSON.parse(e.dataTransfer.getData('text/plain'))
+
+  // Handle track drops
+  const trackData = e.dataTransfer.getData('application/track')
+  if (trackData) {
+    const track = JSON.parse(trackData)
+    emit('add-track', { listId: targetItem.id, trackId: track.trackId, databaseUuid: track.databaseUuid })
+    resetDrag()
+    return
+  }
+
+  // Handle playlist drops
+  const playlistData = e.dataTransfer.getData('application/playlist')
+  if (!playlistData) { resetDrag(); return }
+
+  const data = JSON.parse(playlistData)
   const sourceId = data.id
 
   if (sourceId === targetItem.id) {
@@ -134,10 +168,8 @@ function onDrop(e, targetItem) {
   const pos = dropPosition.value
 
   if (pos === 'into') {
-    // Move into target as child
     emit('move', { playlistId: sourceId, newParentId: targetItem.id })
   } else if (data.parentListId === targetItem.parentListId) {
-    // Reorder among siblings
     const currentOrder = props.items.map(i => i.id)
     const fromIndex = currentOrder.indexOf(sourceId)
     if (fromIndex === -1) {
@@ -150,7 +182,6 @@ function onDrop(e, targetItem) {
     currentOrder.splice(toIndex, 0, sourceId)
     emit('reorder', { parentListId: targetItem.parentListId, orderedIds: currentOrder })
   } else {
-    // Different parent, above/below = move to same parent as target, then reorder
     emit('move', { playlistId: sourceId, newParentId: targetItem.parentListId })
   }
 
@@ -216,6 +247,8 @@ function onDragEnd() {
         @reorder="emit('reorder', $event)"
         @rename="emit('rename', $event)"
         @move="emit('move', $event)"
+        @add-track="emit('add-track', $event)"
+        @delete="emit('delete', $event)"
       />
     </div>
   </div>
@@ -231,6 +264,10 @@ function onDragEnd() {
       <div class="context-menu-item" @click="startRename">
         <span class="context-menu-icon">&#9998;</span>
         Rename
+      </div>
+      <div class="context-menu-item context-menu-delete" @click="deletePlaylist">
+        <span class="context-menu-icon">&#128465;</span>
+        Delete
       </div>
     </div>
   </Teleport>
