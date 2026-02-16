@@ -1,0 +1,59 @@
+# Engine DJ Manager — Build Instructions Log
+# All user orders/instructions given to replicate this app from scratch
+# =====================================================================
+
+1. I want to create a javascript desktop app to manage my custom sqlite music database
+
+2. [Selected options]: Electron, Custom schema, Modern music player UI, Existing database, Vue.js
+
+3. [Database path]: C:\Users\oscar\Documents\__WORK\_LOCALHOST\CLAUDE\prueba\Engine Library\Database2
+
+4. I want a primary menu on top with an options button, this button will open a separated screen in the app for config options like the path for the database
+
+5. relaunch app in dev mode
+
+6. the playlists does not shows any song info
+
+7. close app and relaunch in dev mode
+
+8. I want to add more columns in tracklist table, by right clicking on the top column a contextual menu will appear with the available columns, I can check or uncheck which ones I want to show
+
+9. add horizontal scroll to the table and reescalable column width
+
+10. close all apps and relaunch in dev mode
+
+11. I want to edit track info such title or genre by right clicking on any song, make all values editable except for 'id #' field
+
+12. I want every row dragable to edit the id position in playlist
+
+13. there is a collection playlist on top of all playlists, this playlist stores all the songs in track table, please add it
+
+14. close all apps and relaunch in dev mode
+
+15. Collection is not showing any song please check it
+
+16. close all apps and relaunch in dev mode
+
+17. add a small button next to collection to add a new playlist
+
+18. make the playlists in the left column, dragable to reorder
+
+19. right click on a playlist will show a contextual menu, add an option to the menu to update the playlist name
+
+20. the add playlist button close to collection playlist does not work, please check it out
+
+21. the button rename must allow to edit the playlist name
+
+22. allow the playlists to be nesteable when dragged
+
+23. Launch app in dev mode
+
+24. init git to the project, add a master branch and a develop branch, develop is a branch from master and it stores the current developing state, prior to add a new feature create a branch from develop named: feature/current new feature and add the new content to it, when all its working merge the feature branch in to develop
+
+25. on point 3, please ask about confirmation before merge back into develop
+
+26. fix feature: the playlists aren't draggable inside other playlists
+
+27. yes merge it
+
+28. create a .log file with all the orders I send you to create that app from the beginning, only the orders I sent you, to store all the instructions to replicate that app
