@@ -138,20 +138,27 @@ function isSelected(track) {
 }
 
 // --- Waveform data ---
-const waveformData = ref({})
+const waveformData = ref(0)
+const waveformCache = {}
+
+function getWaveform(trackId) {
+  return waveformCache[trackId] || null
+}
 
 async function fetchWaveforms() {
-  if (!props.tracks || !props.tracks.length) {
-    waveformData.value = {}
-    return
-  }
+  if (!props.tracks || !props.tracks.length) return
   const trackIds = [...new Set(props.tracks.map(t => t.trackId).filter(id => id != null))]
   if (!trackIds.length) return
   try {
     const data = await window.api.getWaveforms(trackIds)
-    waveformData.value = data || {}
+    if (data) {
+      for (const [key, val] of Object.entries(data)) {
+        waveformCache[key] = val
+      }
+      waveformData.value++ // trigger reactivity
+    }
   } catch (e) {
-    waveformData.value = {}
+    // ignore
   }
 }
 
@@ -164,7 +171,7 @@ const isDragging = ref(false)
 
 const ALL_COLUMNS = [
   { id: 'position',       label: '#',              defaultWidth: 50,   align: 'right', default: true },
-  { id: 'preview',        label: 'Preview',        defaultWidth: 60,   align: 'center', default: true },
+  { id: 'preview',        label: 'Preview',        defaultWidth: 120,  align: 'center', default: true },
   { id: 'trackId',        label: 'Track ID',       defaultWidth: 70,   align: 'left',  default: false },
   { id: 'title',          label: 'Title',          defaultWidth: 280,  align: 'left',  default: true },
   { id: 'artist',         label: 'Artist',         defaultWidth: 200,  align: 'left',  default: true },
@@ -210,9 +217,47 @@ function saveColumnSettings() {
 }
 
 const saved = loadColumnSettings()
-const visibleColumnIds = ref(new Set(saved?.visible ?? ALL_COLUMNS.filter(c => c.default).map(c => c.id)))
-const columnWidths = reactive(saved?.widths ?? Object.fromEntries(ALL_COLUMNS.map(c => [c.id, c.defaultWidth])))
-const columnOrder = ref(saved?.order ?? ALL_COLUMNS.map(c => c.id))
+
+// Merge saved settings with any new columns added since last save
+const allIds = ALL_COLUMNS.map(c => c.id)
+const defaultVisible = ALL_COLUMNS.filter(c => c.default).map(c => c.id)
+const defaultWidths = Object.fromEntries(ALL_COLUMNS.map(c => [c.id, c.defaultWidth]))
+
+let initVisible, initWidths, initOrder
+if (saved) {
+  // Add any new default columns not present in saved visibility
+  const savedSet = new Set(saved.visible || [])
+  for (const col of ALL_COLUMNS) {
+    if (col.default && !savedSet.has(col.id) && !(saved.order || []).includes(col.id)) {
+      savedSet.add(col.id)
+    }
+  }
+  initVisible = savedSet
+
+  // Merge widths: use saved if available, else default
+  initWidths = { ...defaultWidths, ...(saved.widths || {}) }
+
+  // Merge order: add any missing columns at their natural position
+  const savedOrder = saved.order || []
+  const savedOrderSet = new Set(savedOrder)
+  const merged = [...savedOrder]
+  for (let i = 0; i < allIds.length; i++) {
+    if (!savedOrderSet.has(allIds[i])) {
+      // Insert at the same relative position as in ALL_COLUMNS
+      const insertAt = Math.min(i, merged.length)
+      merged.splice(insertAt, 0, allIds[i])
+    }
+  }
+  initOrder = merged
+} else {
+  initVisible = new Set(defaultVisible)
+  initWidths = defaultWidths
+  initOrder = allIds
+}
+
+const visibleColumnIds = ref(initVisible instanceof Set ? initVisible : new Set(initVisible))
+const columnWidths = reactive(initWidths)
+const columnOrder = ref(initOrder)
 
 const visibleColumns = computed(() => {
   const colMap = new Map(ALL_COLUMNS.map(c => [c.id, c]))
@@ -757,9 +802,10 @@ onUnmounted(() => {
               @click.stop
             />
             <WaveformPreview
-              v-else-if="col.id === 'preview'"
-              :bars="waveformData[track.trackId] || null"
+              v-else-if="col.id === 'preview' && waveformData >= 0 && getWaveform(track.trackId)"
+              :bars="getWaveform(track.trackId)"
             />
+            <span v-else-if="col.id === 'preview'"></span>
             <template v-else>{{ formatCell(track, col.id) }}</template>
           </div>
         </div>

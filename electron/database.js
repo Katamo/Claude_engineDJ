@@ -501,15 +501,19 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
   ipcMain.handle('db:getWaveforms', async (_event, trackIds) => {
     await ensureInit()
     const result = {}
+    console.log('[waveform] getWaveforms called with', trackIds?.length, 'trackIds')
     for (const trackId of trackIds) {
       try {
-        const row = queryOne('SELECT overviewWaveFormData FROM PerformanceData WHERE id = ?', [trackId])
+        const row = queryOne('SELECT overviewWaveFormData FROM PerformanceData WHERE trackId = ?', [trackId])
         if (row && row.overviewWaveFormData) {
           const bars = processWaveformBlob(row.overviewWaveFormData)
           if (bars) result[trackId] = bars
         }
-      } catch (e) { /* PerformanceData table may not exist */ }
+      } catch (e) {
+        console.log('[waveform] error for trackId', trackId, e.message)
+      }
     }
+    console.log('[waveform] returning', Object.keys(result).length, 'waveforms')
     return result
   })
 

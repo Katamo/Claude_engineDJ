@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, nextTick } from 'vue'
 
 const props = defineProps({
   bars: { type: Array, default: null }
@@ -9,13 +9,11 @@ const canvas = ref(null)
 
 function draw() {
   const c = canvas.value
-  if (!c) return
+  if (!c || !props.bars || !props.bars.length) return
   const ctx = c.getContext('2d')
   const w = c.width
   const h = c.height
   ctx.clearRect(0, 0, w, h)
-
-  if (!props.bars || !props.bars.length) return
 
   const barW = w / props.bars.length
   // Find max combined value for normalization
@@ -27,39 +25,44 @@ function draw() {
 
   for (let i = 0; i < props.bars.length; i++) {
     const { low, mid, high } = props.bars[i]
-    const total = low + mid + high
-    const barH = (total / maxVal) * h
-    const x = i * barW
-    const y = h - barH
 
-    // Draw stacked: low (blue), mid (cyan), high (white)
     const lowH = (low / maxVal) * h
     const midH = (mid / maxVal) * h
     const highH = (high / maxVal) * h
 
+    const x = i * barW
+    const bw = Math.max(1, barW - 0.3)
+
     ctx.fillStyle = '#1a6eff'
-    ctx.fillRect(x, h - lowH, Math.max(1, barW - 0.3), lowH)
+    ctx.fillRect(x, h - lowH, bw, lowH)
 
     ctx.fillStyle = '#00c8ff'
-    ctx.fillRect(x, h - lowH - midH, Math.max(1, barW - 0.3), midH)
+    ctx.fillRect(x, h - lowH - midH, bw, midH)
 
     ctx.fillStyle = '#ccefff'
-    ctx.fillRect(x, h - lowH - midH - highH, Math.max(1, barW - 0.3), highH)
+    ctx.fillRect(x, h - lowH - midH - highH, bw, highH)
   }
 }
 
-onMounted(draw)
-watch(() => props.bars, draw)
+onMounted(() => {
+  draw()
+})
+
+watch(() => props.bars, () => {
+  nextTick(draw)
+}, { deep: true })
 </script>
 
 <template>
-  <canvas ref="canvas" width="56" height="24" class="waveform-canvas"></canvas>
+  <canvas ref="canvas" width="120" height="20" class="waveform-canvas"></canvas>
 </template>
 
 <style scoped>
 .waveform-canvas {
   display: block;
+  width: 100%;
+  height: 20px;
   border-radius: 2px;
-  background: rgba(0, 0, 0, 0.3);
+  background: #1a1a2e;
 }
 </style>
