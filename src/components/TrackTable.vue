@@ -6,7 +6,8 @@ const props = defineProps({
   tracks: Array,
   loading: Boolean,
   hasPlaylist: Boolean,
-  listId: Number
+  listId: Number,
+  keyNotation: { type: String, default: 'standard' }
 })
 
 const emit = defineEmits(['tracks-updated'])
@@ -97,6 +98,59 @@ const KEY_MAP = {
   19: 'F', 20: 'G', 21: 'A', 22: 'B', 23: 'Db', 24: 'Eb'
 }
 
+// Camelot wheel: Engine DJ key value → Camelot notation
+const CAMELOT_MAP = {
+  0: '',
+  1: '8A',   // Am
+  2: '10A',  // Bm
+  3: '12A',  // Dbm
+  4: '2A',   // Ebm
+  5: '4A',   // Fm
+  6: '6A',   // Gm
+  7: '1A',   // Abm
+  8: '3A',   // Bbm
+  9: '5A',   // Cm
+  10: '7A',  // Dm
+  11: '9A',  // Em
+  12: '11A', // F#m
+  13: '8B',  // C
+  14: '10B', // D
+  15: '12B', // E
+  16: '2B',  // Gb
+  17: '4B',  // Ab
+  18: '6B',  // Bb
+  19: '7B',  // F
+  20: '9B',  // G
+  21: '11B', // A
+  22: '1B',  // B
+  23: '12B', // Db (enharmonic of B)
+  24: '3B'   // Eb
+}
+
+// Rainbow colors by Camelot number (1-12), 1=red cycling through the spectrum
+const CAMELOT_COLORS = {
+  '1':  '#ff0000', // Red
+  '2':  '#ff5500', // Red-Orange
+  '3':  '#ff9900', // Orange
+  '4':  '#ffcc00', // Yellow-Orange
+  '5':  '#ffff00', // Yellow
+  '6':  '#88dd00', // Yellow-Green
+  '7':  '#00cc00', // Green
+  '8':  '#00ccaa', // Teal
+  '9':  '#0099ff', // Blue
+  '10': '#4444ff', // Indigo
+  '11': '#9933ff', // Violet
+  '12': '#ff33cc', // Pink
+}
+
+function getKeyColor(keyVal) {
+  if (!keyVal) return null
+  const camelot = CAMELOT_MAP[keyVal]
+  if (!camelot) return null
+  const num = camelot.replace(/[AB]/, '')
+  return CAMELOT_COLORS[num] || null
+}
+
 function formatCell(track, colId) {
   const val = track[colId]
   switch (colId) {
@@ -112,7 +166,7 @@ function formatCell(track, colId) {
       if (val) return (val / 100).toFixed(1)
       return ''
     case 'key':
-      return KEY_MAP[val] || ''
+      return props.keyNotation === 'camelot' ? (CAMELOT_MAP[val] || '') : (KEY_MAP[val] || '')
     case 'rating':
       if (!val) return ''
       const stars = Math.round(val / 20)
@@ -487,7 +541,7 @@ onUnmounted(() => {
             v-for="col in visibleColumns"
             :key="col.id"
             class="track-td"
-            :style="{ width: columnWidths[col.id] + 'px', textAlign: col.align }"
+            :style="{ width: columnWidths[col.id] + 'px', textAlign: col.align, color: col.id === 'key' ? getKeyColor(track.key) : undefined }"
             :title="String(formatCell(track, col.id))"
           >
             {{ formatCell(track, col.id) }}

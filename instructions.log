@@ -95,3 +95,5 @@
 46. add an option in the track contextual menu to remove a track permanently from the collection and all the playlists, name it "Remove from Collection"
 
 47. allow delete from collection when multiselect tracks
+
+48. key column shows music key values, add an option in options settings screen to change from standard key notation to camelot wheel notation, update the key notation in the tableview, also add a different color for every key based on rainbow colors and starting by camelot notation 1 = red
