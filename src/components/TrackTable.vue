@@ -19,6 +19,40 @@ const editTrack = ref(null)
 const showEditDialog = ref(false)
 const scrollContainer = ref(null)
 
+// --- Multi-select ---
+const selectedTrackIds = ref(new Set())
+const lastClickedIndex = ref(null)
+
+function onRowClick(e, track, index) {
+  if (e.ctrlKey || e.metaKey) {
+    // Toggle individual track
+    if (selectedTrackIds.value.has(track.entityId || track.trackId)) {
+      selectedTrackIds.value.delete(track.entityId || track.trackId)
+    } else {
+      selectedTrackIds.value.add(track.entityId || track.trackId)
+    }
+    lastClickedIndex.value = index
+  } else if (e.shiftKey && lastClickedIndex.value !== null) {
+    // Range select
+    const from = Math.min(lastClickedIndex.value, index)
+    const to = Math.max(lastClickedIndex.value, index)
+    const newSet = new Set(selectedTrackIds.value)
+    for (let i = from; i <= to; i++) {
+      const t = sortedTracks.value[i]
+      if (t) newSet.add(t.entityId || t.trackId)
+    }
+    selectedTrackIds.value = newSet
+  } else {
+    // Single click — select only this track
+    selectedTrackIds.value = new Set([track.entityId || track.trackId])
+    lastClickedIndex.value = index
+  }
+}
+
+function isSelected(track) {
+  return selectedTrackIds.value.has(track.entityId || track.trackId)
+}
+
 // --- Drag and drop ---
 const dragIndex = ref(null)
 const dropIndex = ref(null)
@@ -251,11 +285,22 @@ function onResizeEnd() {
 // --- Drag and drop reorder ---
 function onDragStart(e, index) {
   const track = sortedTracks.value[index]
-  // Always set track data for cross-component drops (track → playlist)
-  e.dataTransfer.setData('application/track', JSON.stringify({
-    trackId: track.trackId,
-    databaseUuid: track.databaseUuid || ''
-  }))
+  const trackKey = track.entityId || track.trackId
+
+  // Ensure the dragged track is in the selection
+  if (!selectedTrackIds.value.has(trackKey)) {
+    selectedTrackIds.value = new Set([trackKey])
+    lastClickedIndex.value = index
+  }
+
+  // Build list of selected tracks for cross-component drops
+  const selectedTracks = sortedTracks.value
+    .filter(t => selectedTrackIds.value.has(t.entityId || t.trackId))
+    .map(t => ({ trackId: t.trackId, databaseUuid: t.databaseUuid || '' }))
+
+  e.dataTransfer.setData('application/track', JSON.stringify(
+    selectedTracks.length === 1 ? selectedTracks[0] : selectedTracks
+  ))
   e.dataTransfer.effectAllowed = 'move'
 
   if (canDrag.value) {
@@ -360,10 +405,11 @@ onUnmounted(() => {
           class="track-row"
           :class="[
             dropClass(index),
-            { dragging: dragIndex === index, 'drag-enabled': canDrag }
+            { dragging: dragIndex === index, 'drag-enabled': canDrag, selected: isSelected(track) }
           ]"
           :style="{ width: totalWidth + 'px' }"
           draggable="true"
+          @click="onRowClick($event, track, index)"
           @dragstart="onDragStart($event, index)"
           @dragend="onDragEnd"
           @dragover="onDragOver($event, index)"

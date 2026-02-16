@@ -144,11 +144,14 @@ function onDragLeave(e, item) {
 function onDrop(e, targetItem) {
   e.preventDefault()
 
-  // Handle track drops
+  // Handle track drops (single or multi)
   const trackData = e.dataTransfer.getData('application/track')
   if (trackData) {
-    const track = JSON.parse(trackData)
-    emit('add-track', { listId: targetItem.id, trackId: track.trackId, databaseUuid: track.databaseUuid })
+    const parsed = JSON.parse(trackData)
+    const tracks = Array.isArray(parsed) ? parsed : [parsed]
+    for (const track of tracks) {
+      emit('add-track', { listId: targetItem.id, trackId: track.trackId, databaseUuid: track.databaseUuid })
+    }
     resetDrag()
     return
   }
