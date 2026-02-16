@@ -15,6 +15,7 @@ const searchQuery = ref('')
 const loading = ref(false)
 const showSettings = ref(false)
 const keyNotation = ref('standard')
+const musicDrive = ref('D:\\')
 
 async function loadData() {
   try {
@@ -128,6 +129,7 @@ async function reorderPlaylists({ parentListId, orderedIds }) {
 async function loadConfig() {
   const config = await window.api.getConfig()
   keyNotation.value = config.keyNotation || 'standard'
+  musicDrive.value = config.musicDrive || 'D:\\'
 }
 
 async function onConfigChanged() {
@@ -192,7 +194,7 @@ onMounted(async () => {
             <h2>Library</h2>
             <div class="subtitle">Select a playlist from the sidebar to view its tracks</div>
           </div>
-          <TrackTable :tracks="tracks" :loading="loading" :hasPlaylist="!!selectedPlaylist" :listId="selectedPlaylist?.id" :keyNotation="keyNotation" @tracks-updated="selectPlaylist(selectedPlaylist)" />
+          <TrackTable :tracks="tracks" :loading="loading" :hasPlaylist="!!selectedPlaylist" :listId="selectedPlaylist?.id" :keyNotation="keyNotation" :musicDrive="musicDrive" @tracks-updated="selectPlaylist(selectedPlaylist)" />
         </div>
       </div>
     </div>

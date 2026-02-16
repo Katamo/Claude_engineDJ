@@ -97,3 +97,21 @@
 47. allow delete from collection when multiselect tracks
 
 48. key column shows music key values, add an option in options settings screen to change from standard key notation to camelot wheel notation, update the key notation in the tableview, also add a different color for every key based on rainbow colors and starting by camelot notation 1 = red
+
+49. allow track field editing by doubleclick in a cell
+
+50. allow row edit for multiselected rows, updating a cell in multiselected tracks will update the field in all the selected rows
+
+51. Allow column reorder in playlist view by drag&drop column titles
+
+52. update the key field ordering by ordering tracks by musical note
+
+53. make the column order width and visibility of fields persistent when close and reopen app
+
+54. add a Preview field next to #, atm it will be an empty field
+
+55. the table PerformanceData stores additional info about every track, overviewWaveFormData is a BLOB field that stores an image related to every track and is related to its waveform. Take that BLOB from overviewWaveFormData format it as an image and place it in the column 'Preview'
+
+56. add a play/pause button in the preview cell field and before the preview component
+
+57. the "file path" field in tracks table stores the path for a song (mp3/flac), starting from drive "D:\". Add in Options screen a field for the origin drive (default "D:\"), prepend it to the file path, and use it to play/stop the song when the play button is clicked

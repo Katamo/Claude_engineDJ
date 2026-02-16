@@ -1,13 +1,15 @@
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, nextTick, watch, onMounted, onUnmounted } from 'vue'
 import EditTrackDialog from './EditTrackDialog.vue'
+import WaveformPreview from './WaveformPreview.vue'
 
 const props = defineProps({
   tracks: Array,
   loading: Boolean,
   hasPlaylist: Boolean,
   listId: Number,
-  keyNotation: { type: String, default: 'standard' }
+  keyNotation: { type: String, default: 'standard' },
+  musicDrive: { type: String, default: 'D:\\' }
 })
 
 const emit = defineEmits(['tracks-updated'])
@@ -16,6 +18,88 @@ const sortField = ref(null)
 const sortAsc = ref(true)
 const contextMenu = ref({ visible: false, x: 0, y: 0 })
 const rowContextMenu = ref({ visible: false, x: 0, y: 0, track: null })
+
+// --- Inline cell editing ---
+const editingCell = ref(null) // { trackId, colId }
+const editingValue = ref('')
+const cellInput = ref(null)
+
+const NON_EDITABLE = new Set(['position', 'preview', 'trackId', 'entityId', 'databaseUuid'])
+
+// Map column IDs to DB field names
+const COL_TO_DB_FIELD = { filePath: 'path' }
+
+function onCellDblClick(track, colId) {
+  if (NON_EDITABLE.has(colId)) return
+  editingCell.value = { trackId: track.trackId, entityId: track.entityId, colId }
+  // Get the raw value for editing, not the formatted one
+  if (colId === 'key') {
+    editingValue.value = String(track.key ?? '')
+  } else if (colId === 'bpm') {
+    editingValue.value = String(track.bpmAnalyzed ?? (track.bpm ? (track.bpm / 100).toFixed(1) : ''))
+  } else if (colId === 'rating') {
+    editingValue.value = String(track.rating ?? '')
+  } else if (colId === 'length') {
+    editingValue.value = String(track.length ?? '')
+  } else {
+    editingValue.value = String(track[colId] ?? '')
+  }
+  nextTick(() => {
+    if (cellInput.value) {
+      cellInput.value.focus()
+      cellInput.value.select()
+    }
+  })
+}
+
+function isEditingCell(track, colId) {
+  return editingCell.value?.trackId === track.trackId && editingCell.value?.colId === colId
+}
+
+async function confirmCellEdit(track) {
+  if (!editingCell.value) return
+  const colId = editingCell.value.colId
+  const newVal = editingValue.value.trim()
+  editingCell.value = null
+  editingValue.value = ''
+
+  // Determine the DB field name
+  const dbField = COL_TO_DB_FIELD[colId] || colId
+
+  // Build the fields object
+  let fields
+  if (colId === 'bpm') {
+    fields = { bpm: newVal ? Math.round(parseFloat(newVal) * 100) : null, bpmAnalyzed: newVal ? parseFloat(newVal) : null }
+  } else if (colId === 'rating' || colId === 'length' || colId === 'year' || colId === 'bitrate' || colId === 'key') {
+    fields = { [dbField]: newVal ? Number(newVal) : null }
+  } else {
+    fields = { [dbField]: newVal }
+  }
+
+  // Determine which tracks to update
+  const trackKey = track.entityId || track.trackId
+  const updateSelected = selectedTrackIds.value.has(trackKey) && selectedTrackIds.value.size > 1
+  const trackIds = updateSelected
+    ? sortedTracks.value
+        .filter(t => selectedTrackIds.value.has(t.entityId || t.trackId))
+        .map(t => t.trackId)
+        .filter(id => id != null)
+    : [track.trackId]
+
+  try {
+    for (const id of trackIds) {
+      await window.api.updateTrack(id, fields)
+    }
+    emit('tracks-updated')
+  } catch (err) {
+    console.error('Failed to update track(s):', err)
+  }
+}
+
+function cancelCellEdit() {
+  editingCell.value = null
+  editingValue.value = ''
+}
 const editTrack = ref(null)
 const showEditDialog = ref(false)
 const scrollContainer = ref(null)
@@ -54,6 +138,92 @@ function isSelected(track) {
   return selectedTrackIds.value.has(track.entityId || track.trackId)
 }
 
+// --- Audio Play/Pause ---
+const playingTrackId = ref(null)
+let audioElement = null
+
+function buildTrackPath(track) {
+  let filePath = track.filePath || track.path || ''
+  if (!filePath) return null
+  // Normalize separators to forward slashes
+  filePath = filePath.replace(/\\/g, '/')
+  // Strip leading ../ segments — the music drive is already the resolved root
+  while (filePath.startsWith('../')) filePath = filePath.substring(3)
+  while (filePath.startsWith('./')) filePath = filePath.substring(2)
+  let drive = (props.musicDrive || 'D:\\').replace(/\\/g, '/')
+  // Ensure drive ends with /
+  if (!drive.endsWith('/')) drive += '/'
+  return drive + filePath
+}
+
+function togglePlay(track) {
+  if (playingTrackId.value === track.trackId) {
+    // Stop current playback
+    if (audioElement) {
+      audioElement.pause()
+      audioElement.src = ''
+      audioElement = null
+    }
+    playingTrackId.value = null
+  } else {
+    // Stop previous if any
+    if (audioElement) {
+      audioElement.pause()
+      audioElement.src = ''
+    }
+    const filePath = buildTrackPath(track)
+    if (!filePath) return
+    // Use custom protocol: local-audio://play/D:/path/to/file.mp3
+    const audioUrl = 'local-audio://play/' + encodeURI(filePath).replace(/#/g, '%23')
+    audioElement = new Audio(audioUrl)
+    audioElement.addEventListener('ended', () => {
+      playingTrackId.value = null
+      audioElement = null
+    })
+    audioElement.addEventListener('error', () => {
+      playingTrackId.value = null
+      audioElement = null
+    })
+    audioElement.play().catch(() => {})
+    playingTrackId.value = track.trackId
+  }
+}
+
+onUnmounted(() => {
+  if (audioElement) {
+    audioElement.pause()
+    audioElement.src = ''
+    audioElement = null
+  }
+})
+
+// --- Waveform data ---
+const waveformData = ref(0)
+const waveformCache = {}
+
+function getWaveform(trackId) {
+  return waveformCache[trackId] || null
+}
+
+async function fetchWaveforms() {
+  if (!props.tracks || !props.tracks.length) return
+  const trackIds = [...new Set(props.tracks.map(t => t.trackId).filter(id => id != null))]
+  if (!trackIds.length) return
+  try {
+    const data = await window.api.getWaveforms(trackIds)
+    if (data) {
+      for (const [key, val] of Object.entries(data)) {
+        waveformCache[key] = val
+      }
+      waveformData.value++ // trigger reactivity
+    }
+  } catch (e) {
+    // ignore
+  }
+}
+
+watch(() => props.tracks, fetchWaveforms, { immediate: true })
+
 // --- Drag and drop ---
 const dragIndex = ref(null)
 const dropIndex = ref(null)
@@ -61,6 +231,7 @@ const isDragging = ref(false)
 
 const ALL_COLUMNS = [
   { id: 'position',       label: '#',              defaultWidth: 50,   align: 'right', default: true },
+  { id: 'preview',        label: 'Preview',        defaultWidth: 120,  align: 'center', default: true },
   { id: 'trackId',        label: 'Track ID',       defaultWidth: 70,   align: 'left',  default: false },
   { id: 'title',          label: 'Title',          defaultWidth: 280,  align: 'left',  default: true },
   { id: 'artist',         label: 'Artist',         defaultWidth: 200,  align: 'left',  default: true },
@@ -85,11 +256,122 @@ const ALL_COLUMNS = [
   { id: 'entityId',       label: 'Entity ID',      defaultWidth: 70,   align: 'left',  default: false },
 ]
 
-const visibleColumnIds = ref(new Set(ALL_COLUMNS.filter(c => c.default).map(c => c.id)))
-const columnWidths = reactive(Object.fromEntries(ALL_COLUMNS.map(c => [c.id, c.defaultWidth])))
+// --- Persist column settings ---
+const STORAGE_KEY = 'trackTableColumns'
 
-const visibleColumns = computed(() => ALL_COLUMNS.filter(c => visibleColumnIds.value.has(c.id)))
+function loadColumnSettings() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (saved) return JSON.parse(saved)
+  } catch (e) { /* ignore */ }
+  return null
+}
+
+function saveColumnSettings() {
+  const data = {
+    visible: [...visibleColumnIds.value],
+    widths: { ...columnWidths },
+    order: columnOrder.value
+  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+}
+
+const saved = loadColumnSettings()
+
+// Merge saved settings with any new columns added since last save
+const allIds = ALL_COLUMNS.map(c => c.id)
+const defaultVisible = ALL_COLUMNS.filter(c => c.default).map(c => c.id)
+const defaultWidths = Object.fromEntries(ALL_COLUMNS.map(c => [c.id, c.defaultWidth]))
+
+let initVisible, initWidths, initOrder
+if (saved) {
+  // Add any new default columns not present in saved visibility
+  const savedSet = new Set(saved.visible || [])
+  for (const col of ALL_COLUMNS) {
+    if (col.default && !savedSet.has(col.id) && !(saved.order || []).includes(col.id)) {
+      savedSet.add(col.id)
+    }
+  }
+  initVisible = savedSet
+
+  // Merge widths: use saved if available, else default
+  initWidths = { ...defaultWidths, ...(saved.widths || {}) }
+
+  // Merge order: add any missing columns at their natural position
+  const savedOrder = saved.order || []
+  const savedOrderSet = new Set(savedOrder)
+  const merged = [...savedOrder]
+  for (let i = 0; i < allIds.length; i++) {
+    if (!savedOrderSet.has(allIds[i])) {
+      // Insert at the same relative position as in ALL_COLUMNS
+      const insertAt = Math.min(i, merged.length)
+      merged.splice(insertAt, 0, allIds[i])
+    }
+  }
+  initOrder = merged
+} else {
+  initVisible = new Set(defaultVisible)
+  initWidths = defaultWidths
+  initOrder = allIds
+}
+
+const visibleColumnIds = ref(initVisible instanceof Set ? initVisible : new Set(initVisible))
+const columnWidths = reactive(initWidths)
+const columnOrder = ref(initOrder)
+
+const visibleColumns = computed(() => {
+  const colMap = new Map(ALL_COLUMNS.map(c => [c.id, c]))
+  return columnOrder.value.filter(id => visibleColumnIds.value.has(id)).map(id => colMap.get(id))
+})
 const totalWidth = computed(() => visibleColumns.value.reduce((sum, c) => sum + columnWidths[c.id], 0))
+
+// --- Column drag reorder ---
+const dragColId = ref(null)
+const dropColId = ref(null)
+
+function onColDragStart(e, colId) {
+  if (colId === 'position') { e.preventDefault(); return }
+  dragColId.value = colId
+  e.dataTransfer.effectAllowed = 'move'
+  e.dataTransfer.setData('application/column', colId)
+}
+
+function onColDragOver(e, colId) {
+  if (colId === 'position') return
+  if (!dragColId.value || dragColId.value === colId) return
+  e.preventDefault()
+  e.dataTransfer.dropEffect = 'move'
+  dropColId.value = colId
+}
+
+function onColDragLeave(e, colId) {
+  if (dropColId.value === colId) dropColId.value = null
+}
+
+function onColDrop(e, colId) {
+  e.preventDefault()
+  if (!dragColId.value || dragColId.value === colId) { resetColDrag(); return }
+
+  const order = [...columnOrder.value]
+  const fromIdx = order.indexOf(dragColId.value)
+  const toIdx = order.indexOf(colId)
+  if (fromIdx === -1 || toIdx === -1) { resetColDrag(); return }
+
+  order.splice(fromIdx, 1)
+  order.splice(toIdx, 0, dragColId.value)
+  columnOrder.value = order
+  saveColumnSettings()
+  resetColDrag()
+}
+
+function onColDragEnd() {
+  resetColDrag()
+}
+
+function resetColDrag() {
+  dragColId.value = null
+  dropColId.value = null
+}
 
 const KEY_MAP = {
   0: '', 1: 'Am', 2: 'Bm', 3: 'Dbm', 4: 'Ebm', 5: 'Fm', 6: 'Gm',
@@ -143,6 +425,15 @@ const CAMELOT_COLORS = {
   '12': '#ff33cc', // Pink
 }
 
+// Sort weight for key column: ordered by Camelot number (1A, 1B, 2A, 2B, ... 12A, 12B)
+const KEY_SORT_WEIGHT = {}
+for (const [engineVal, camelot] of Object.entries(CAMELOT_MAP)) {
+  if (!camelot) { KEY_SORT_WEIGHT[engineVal] = 999; continue }
+  const num = parseInt(camelot.replace(/[AB]/, ''))
+  const letter = camelot.endsWith('A') ? 0 : 1
+  KEY_SORT_WEIGHT[engineVal] = num * 2 + letter
+}
+
 function getKeyColor(keyVal) {
   if (!keyVal) return null
   const camelot = CAMELOT_MAP[keyVal]
@@ -156,6 +447,8 @@ function formatCell(track, colId) {
   switch (colId) {
     case 'position':
       return positionMap.value.get(track.entityId) ?? ''
+    case 'preview':
+      return ''
     case 'trackId':
     case 'entityId':
       return val ?? ''
@@ -223,6 +516,11 @@ const sortedTracks = computed(() => {
   const field = sortField.value
   const dir = sortAsc.value ? 1 : -1
   return [...linkedListTracks.value].sort((a, b) => {
+    if (field === 'key') {
+      const wa = KEY_SORT_WEIGHT[a.key] ?? 999
+      const wb = KEY_SORT_WEIGHT[b.key] ?? 999
+      return (wa - wb) * dir
+    }
     const va = a[field] ?? ''
     const vb = b[field] ?? ''
     if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir
@@ -263,6 +561,7 @@ function toggleColumn(colId) {
   } else {
     visibleColumnIds.value.add(colId)
   }
+  saveColumnSettings()
 }
 
 function closeContextMenu() {
@@ -396,6 +695,7 @@ function onResizeEnd() {
   document.removeEventListener('mouseup', onResizeEnd)
   document.body.style.cursor = ''
   document.body.style.userSelect = ''
+  saveColumnSettings()
 }
 
 // --- Drag and drop reorder ---
@@ -506,9 +806,15 @@ onUnmounted(() => {
           v-for="col in visibleColumns"
           :key="col.id"
           class="track-th"
-          :class="{ sorted: sortField === col.id }"
+          :class="{ sorted: sortField === col.id, 'col-drop-target': dropColId === col.id, 'col-dragging': dragColId === col.id }"
           :style="{ width: columnWidths[col.id] + 'px', textAlign: col.align }"
+          :draggable="col.id !== 'position'"
           @click="toggleSort(col.id)"
+          @dragstart="onColDragStart($event, col.id)"
+          @dragover="onColDragOver($event, col.id)"
+          @dragleave="onColDragLeave($event, col.id)"
+          @drop="onColDrop($event, col.id)"
+          @dragend="onColDragEnd"
         >
           <span class="th-label">{{ col.label }}{{ sortIndicator(col.id) }}</span>
           <span class="resize-handle" @mousedown="onResizeStart($event, col.id)"></span>
@@ -543,8 +849,30 @@ onUnmounted(() => {
             class="track-td"
             :style="{ width: columnWidths[col.id] + 'px', textAlign: col.align, color: col.id === 'key' ? getKeyColor(track.key) : undefined }"
             :title="String(formatCell(track, col.id))"
+            @dblclick.stop="onCellDblClick(track, col.id)"
           >
-            {{ formatCell(track, col.id) }}
+            <input
+              v-if="isEditingCell(track, col.id)"
+              ref="cellInput"
+              v-model="editingValue"
+              class="cell-edit-input"
+              @keydown.enter.stop="confirmCellEdit(track)"
+              @keydown.escape.stop="cancelCellEdit"
+              @blur="confirmCellEdit(track)"
+              @click.stop
+            />
+            <div v-else-if="col.id === 'preview'" class="preview-cell">
+              <button
+                class="play-btn"
+                @click.stop="togglePlay(track)"
+                :title="playingTrackId === track.trackId ? 'Pause' : 'Play'"
+              >{{ playingTrackId === track.trackId ? '&#9646;&#9646;' : '&#9654;' }}</button>
+              <WaveformPreview
+                v-if="waveformData >= 0 && getWaveform(track.trackId)"
+                :bars="getWaveform(track.trackId)"
+              />
+            </div>
+            <template v-else>{{ formatCell(track, col.id) }}</template>
           </div>
         </div>
       </div>

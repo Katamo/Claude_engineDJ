@@ -339,6 +339,14 @@ html, body, #app {
   color: var(--accent);
 }
 
+.track-th.col-dragging {
+  opacity: 0.4;
+}
+
+.track-th.col-drop-target {
+  border-left: 2px solid var(--accent);
+}
+
 .th-label {
   pointer-events: none;
 }
@@ -434,6 +442,52 @@ html, body, #app {
   text-overflow: ellipsis;
   font-size: 12px;
   flex-shrink: 0;
+  position: relative;
+}
+
+.cell-edit-input {
+  width: 100%;
+  background: var(--bg-primary);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: 1px 4px;
+  outline: none;
+  font-family: inherit;
+  margin: -2px 0;
+}
+
+/* --- Preview Cell --- */
+.preview-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.play-btn {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+  line-height: 1;
+}
+
+.play-btn:hover {
+  background: var(--accent);
+  color: #fff;
 }
 
 /* --- Column Context Menu --- */
