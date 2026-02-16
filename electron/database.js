@@ -1,6 +1,7 @@
 const initSqlJs = require('sql.js')
 const path = require('path')
 const fs = require('fs')
+const zlib = require('zlib')
 
 let DB_DIR = null
 let currentDbFile = null
