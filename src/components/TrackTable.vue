@@ -8,7 +8,8 @@ const props = defineProps({
   loading: Boolean,
   hasPlaylist: Boolean,
   listId: Number,
-  keyNotation: { type: String, default: 'standard' }
+  keyNotation: { type: String, default: 'standard' },
+  musicDrive: { type: String, default: 'D:\\' }
 })
 
 const emit = defineEmits(['tracks-updated'])
@@ -137,16 +138,64 @@ function isSelected(track) {
   return selectedTrackIds.value.has(track.entityId || track.trackId)
 }
 
-// --- Play/Pause ---
+// --- Audio Play/Pause ---
 const playingTrackId = ref(null)
+let audioElement = null
+
+function buildTrackPath(track) {
+  let filePath = track.filePath || track.path || ''
+  if (!filePath) return null
+  // Normalize separators to forward slashes
+  filePath = filePath.replace(/\\/g, '/')
+  // Strip leading ../ segments — the music drive is already the resolved root
+  while (filePath.startsWith('../')) filePath = filePath.substring(3)
+  while (filePath.startsWith('./')) filePath = filePath.substring(2)
+  let drive = (props.musicDrive || 'D:\\').replace(/\\/g, '/')
+  // Ensure drive ends with /
+  if (!drive.endsWith('/')) drive += '/'
+  return drive + filePath
+}
 
 function togglePlay(track) {
   if (playingTrackId.value === track.trackId) {
+    // Stop current playback
+    if (audioElement) {
+      audioElement.pause()
+      audioElement.src = ''
+      audioElement = null
+    }
     playingTrackId.value = null
   } else {
+    // Stop previous if any
+    if (audioElement) {
+      audioElement.pause()
+      audioElement.src = ''
+    }
+    const filePath = buildTrackPath(track)
+    if (!filePath) return
+    // Use custom protocol: local-audio://play/D:/path/to/file.mp3
+    const audioUrl = 'local-audio://play/' + encodeURI(filePath).replace(/#/g, '%23')
+    audioElement = new Audio(audioUrl)
+    audioElement.addEventListener('ended', () => {
+      playingTrackId.value = null
+      audioElement = null
+    })
+    audioElement.addEventListener('error', () => {
+      playingTrackId.value = null
+      audioElement = null
+    })
+    audioElement.play().catch(() => {})
     playingTrackId.value = track.trackId
   }
 }
+
+onUnmounted(() => {
+  if (audioElement) {
+    audioElement.pause()
+    audioElement.src = ''
+    audioElement = null
+  }
+})
 
 // --- Waveform data ---
 const waveformData = ref(0)
