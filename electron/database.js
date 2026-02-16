@@ -392,6 +392,26 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
     return { success: true, entityId: newId }
   })
 
+  ipcMain.handle('db:removeTrackFromPlaylist', async (_event, listId, entityId) => {
+    await ensureInit()
+    const d = ensureDb()
+
+    const entity = queryOne('SELECT id, nextEntityId FROM PlaylistEntity WHERE id = ? AND listId = ?', [entityId, listId])
+    if (!entity) return { success: false, error: 'Entity not found' }
+
+    // Fix linked list: find the entity pointing to this one
+    const prev = queryOne('SELECT id FROM PlaylistEntity WHERE listId = ? AND nextEntityId = ?', [listId, entityId])
+    if (prev) {
+      d.run('UPDATE PlaylistEntity SET nextEntityId = ? WHERE id = ?', [entity.nextEntityId || 0, prev.id])
+    }
+
+    // Delete the entity
+    d.run('DELETE FROM PlaylistEntity WHERE id = ?', [entityId])
+
+    saveDatabase()
+    return { success: true }
+  })
+
   ipcMain.handle('db:updateTrack', async (_event, trackId, fields) => {
     await ensureInit()
     const d = ensureDb()
