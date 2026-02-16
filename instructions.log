@@ -107,3 +107,5 @@
 52. update the key field ordering by ordering tracks by musical note
 
 53. make the column order width and visibility of fields persistent when close and reopen app
+
+54. add a Preview field next to #, atm it will be an empty field
