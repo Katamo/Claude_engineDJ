@@ -8,7 +8,8 @@ const props = defineProps({
   loading: Boolean,
   hasPlaylist: Boolean,
   listId: Number,
-  keyNotation: { type: String, default: 'standard' }
+  keyNotation: { type: String, default: 'standard' },
+  musicDrive: { type: String, default: 'D:\\' }
 })
 
 const emit = defineEmits(['tracks-updated'])
@@ -137,16 +138,59 @@ function isSelected(track) {
   return selectedTrackIds.value.has(track.entityId || track.trackId)
 }
 
-// --- Play/Pause ---
+// --- Audio Play/Pause ---
 const playingTrackId = ref(null)
+let audioElement = null
+
+function buildTrackPath(track) {
+  const filePath = track.filePath || track.path || ''
+  if (!filePath) return null
+  // Normalize: replace backslashes with forward slashes
+  let drive = props.musicDrive || 'D:\\'
+  // Ensure drive ends with separator
+  if (!drive.endsWith('/') && !drive.endsWith('\\')) drive += '/'
+  const fullPath = drive + filePath
+  return fullPath.replace(/\\/g, '/')
+}
 
 function togglePlay(track) {
   if (playingTrackId.value === track.trackId) {
+    // Stop current playback
+    if (audioElement) {
+      audioElement.pause()
+      audioElement.src = ''
+      audioElement = null
+    }
     playingTrackId.value = null
   } else {
+    // Stop previous if any
+    if (audioElement) {
+      audioElement.pause()
+      audioElement.src = ''
+    }
+    const filePath = buildTrackPath(track)
+    if (!filePath) return
+    audioElement = new Audio('local-audio:///' + encodeURI(filePath))
+    audioElement.addEventListener('ended', () => {
+      playingTrackId.value = null
+      audioElement = null
+    })
+    audioElement.addEventListener('error', () => {
+      playingTrackId.value = null
+      audioElement = null
+    })
+    audioElement.play()
     playingTrackId.value = track.trackId
   }
 }
+
+onUnmounted(() => {
+  if (audioElement) {
+    audioElement.pause()
+    audioElement.src = ''
+    audioElement = null
+  }
+})
 
 // --- Waveform data ---
 const waveformData = ref(0)

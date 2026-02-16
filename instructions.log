@@ -113,3 +113,5 @@
 55. the table PerformanceData stores additional info about every track, overviewWaveFormData is a BLOB field that stores an image related to every track and is related to its waveform. Take that BLOB from overviewWaveFormData format it as an image and place it in the column 'Preview'
 
 56. add a play/pause button in the preview cell field and before the preview component
+
+57. the "file path" field in tracks table stores the path for a song (mp3/flac), starting from drive "D:\". Add in Options screen a field for the origin drive (default "D:\"), prepend it to the file path, and use it to play/stop the song when the play button is clicked

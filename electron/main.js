@@ -1,7 +1,8 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, protocol } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const { registerDatabaseHandlers } = require('./database')
+const { pathToFileURL } = require('url')
 
 let mainWindow
 
@@ -65,6 +66,19 @@ function registerConfigHandlers() {
 }
 
 app.whenReady().then(() => {
+  // Register custom protocol to serve local audio files
+  protocol.handle('local-audio', (request) => {
+    // URL format: local-audio:///D:/path/to/file.mp3
+    let filePath = decodeURIComponent(request.url.replace('local-audio:///', ''))
+    // On Windows, ensure backslashes
+    filePath = filePath.replace(/\//g, '\\')
+    // Remove leading backslash if drive letter follows (e.g. \D: -> D:)
+    if (filePath.match(/^\\[A-Za-z]:/)) filePath = filePath.substring(1)
+    return new Response(fs.createReadStream(filePath), {
+      headers: { 'Content-Type': filePath.endsWith('.flac') ? 'audio/flac' : 'audio/mpeg' }
+    })
+  })
+
   const config = loadConfig()
   registerConfigHandlers()
   registerDatabaseHandlers(ipcMain, config.dbPath)

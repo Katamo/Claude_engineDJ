@@ -5,12 +5,14 @@ const emit = defineEmits(['close', 'config-changed'])
 
 const dbPath = ref('')
 const keyNotation = ref('standard')
+const musicDrive = ref('D:\\')
 const savedMessage = ref('')
 
 onMounted(async () => {
   const config = await window.api.getConfig()
   dbPath.value = config.dbPath || ''
   keyNotation.value = config.keyNotation || 'standard'
+  musicDrive.value = config.musicDrive || 'D:\\'
 })
 
 async function browsePath() {
@@ -21,7 +23,7 @@ async function browsePath() {
 }
 
 async function save() {
-  const config = { dbPath: dbPath.value, keyNotation: keyNotation.value }
+  const config = { dbPath: dbPath.value, keyNotation: keyNotation.value, musicDrive: musicDrive.value }
   await window.api.saveConfig(config)
   await window.api.setDbPath(dbPath.value)
   savedMessage.value = 'Settings saved successfully'
@@ -55,6 +57,23 @@ async function save() {
             </div>
             <p class="setting-hint">
               Select the folder containing your Engine DJ .db files (e.g. Engine Library/Database2)
+            </p>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3>Audio</h3>
+
+          <div class="setting-row">
+            <label>Music drive / root path</label>
+            <input
+              type="text"
+              class="setting-input"
+              v-model="musicDrive"
+              placeholder="D:\"
+            />
+            <p class="setting-hint">
+              The drive or root path where your music files are stored. This is prepended to the track's file path for playback.
             </p>
           </div>
         </div>
