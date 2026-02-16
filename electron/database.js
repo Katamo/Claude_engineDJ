@@ -450,6 +450,29 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
     return { success: true }
   })
 
+  ipcMain.handle('db:removeFromCollection', async (_event, trackId) => {
+    await ensureInit()
+    const d = ensureDb()
+
+    // Find all playlist entities referencing this track
+    const entities = queryAll('SELECT id, listId, nextEntityId FROM PlaylistEntity WHERE trackId = ?', [trackId])
+
+    // For each entity, fix the linked list in its playlist then delete
+    for (const entity of entities) {
+      const prev = queryOne('SELECT id FROM PlaylistEntity WHERE listId = ? AND nextEntityId = ?', [entity.listId, entity.id])
+      if (prev) {
+        d.run('UPDATE PlaylistEntity SET nextEntityId = ? WHERE id = ?', [entity.nextEntityId || 0, prev.id])
+      }
+      d.run('DELETE FROM PlaylistEntity WHERE id = ?', [entity.id])
+    }
+
+    // Delete the track itself
+    d.run('DELETE FROM Track WHERE id = ?', [trackId])
+
+    saveDatabase()
+    return { success: true }
+  })
+
   ipcMain.handle('db:updateTrack', async (_event, trackId, fields) => {
     await ensureInit()
     const d = ensureDb()

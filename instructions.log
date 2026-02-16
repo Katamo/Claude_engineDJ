@@ -91,3 +91,5 @@
 44. add an option in contextual menu to remove track from a playlist
 
 45. allow to remove multiple selected tracks from a playlist
+
+46. add an option in the track contextual menu to remove a track permanently from the collection and all the playlists, name it "Remove from Collection"
