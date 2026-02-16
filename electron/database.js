@@ -396,16 +396,8 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
     await ensureInit()
     const d = ensureDb()
 
-    console.log('db:removeTrackFromPlaylist called with:', { listId, entityId })
-
     const entity = queryOne('SELECT id, nextEntityId FROM PlaylistEntity WHERE id = ? AND listId = ?', [entityId, listId])
-    console.log('Found entity:', entity)
-    if (!entity) {
-      // Try without listId filter to debug
-      const byIdOnly = queryOne('SELECT id, listId, nextEntityId FROM PlaylistEntity WHERE id = ?', [entityId])
-      console.log('Entity by id only:', byIdOnly)
-      return { success: false, error: 'Entity not found' }
-    }
+    if (!entity) return { success: false, error: 'Entity not found' }
 
     // Fix linked list: find the entity pointing to this one
     const prev = queryOne('SELECT id FROM PlaylistEntity WHERE listId = ? AND nextEntityId = ?', [listId, entityId])
@@ -417,7 +409,6 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
     d.run('DELETE FROM PlaylistEntity WHERE id = ?', [entityId])
 
     saveDatabase()
-    console.log('Track removed successfully')
     return { success: true }
   })
 
