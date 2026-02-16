@@ -105,3 +105,5 @@
 51. Allow column reorder in playlist view by drag&drop column titles
 
 52. update the key field ordering by ordering tracks by musical note
+
+53. make the column order width and visibility of fields persistent when close and reopen app

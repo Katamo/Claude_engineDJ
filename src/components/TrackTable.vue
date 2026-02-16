@@ -167,9 +167,30 @@ const ALL_COLUMNS = [
   { id: 'entityId',       label: 'Entity ID',      defaultWidth: 70,   align: 'left',  default: false },
 ]
 
-const visibleColumnIds = ref(new Set(ALL_COLUMNS.filter(c => c.default).map(c => c.id)))
-const columnWidths = reactive(Object.fromEntries(ALL_COLUMNS.map(c => [c.id, c.defaultWidth])))
-const columnOrder = ref(ALL_COLUMNS.map(c => c.id))
+// --- Persist column settings ---
+const STORAGE_KEY = 'trackTableColumns'
+
+function loadColumnSettings() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (saved) return JSON.parse(saved)
+  } catch (e) { /* ignore */ }
+  return null
+}
+
+function saveColumnSettings() {
+  const data = {
+    visible: [...visibleColumnIds.value],
+    widths: { ...columnWidths },
+    order: columnOrder.value
+  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+}
+
+const saved = loadColumnSettings()
+const visibleColumnIds = ref(new Set(saved?.visible ?? ALL_COLUMNS.filter(c => c.default).map(c => c.id)))
+const columnWidths = reactive(saved?.widths ?? Object.fromEntries(ALL_COLUMNS.map(c => [c.id, c.defaultWidth])))
+const columnOrder = ref(saved?.order ?? ALL_COLUMNS.map(c => c.id))
 
 const visibleColumns = computed(() => {
   const colMap = new Map(ALL_COLUMNS.map(c => [c.id, c]))
@@ -212,6 +233,7 @@ function onColDrop(e, colId) {
   order.splice(fromIdx, 1)
   order.splice(toIdx, 0, dragColId.value)
   columnOrder.value = order
+  saveColumnSettings()
   resetColDrag()
 }
 
@@ -410,6 +432,7 @@ function toggleColumn(colId) {
   } else {
     visibleColumnIds.value.add(colId)
   }
+  saveColumnSettings()
 }
 
 function closeContextMenu() {
@@ -543,6 +566,7 @@ function onResizeEnd() {
   document.removeEventListener('mouseup', onResizeEnd)
   document.body.style.cursor = ''
   document.body.style.userSelect = ''
+  saveColumnSettings()
 }
 
 // --- Drag and drop reorder ---
