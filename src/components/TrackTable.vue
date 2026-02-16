@@ -90,11 +90,35 @@ function formatCell(track, colId) {
   }
 }
 
+// Resolve linked-list order using nextEntityId
+const linkedListTracks = computed(() => {
+  const tracks = props.tracks
+  if (!tracks.length) return []
+  // Check if tracks have nextEntityId (playlist context)
+  const hasLinkedList = tracks.some(t => t.nextEntityId !== undefined && t.nextEntityId !== null)
+  if (!hasLinkedList) return tracks
+
+  const byId = new Map(tracks.map(t => [t.entityId, t]))
+  const nextIds = new Set(tracks.map(t => t.nextEntityId).filter(id => id > 0))
+  // First item is the one not referenced by any other's nextEntityId
+  let current = tracks.find(t => !nextIds.has(t.entityId))
+  const sorted = []
+  const visited = new Set()
+  while (current && !visited.has(current.entityId)) {
+    visited.add(current.entityId)
+    sorted.push(current)
+    current = current.nextEntityId > 0 ? byId.get(current.nextEntityId) : null
+  }
+  // Add any unlinked tracks at the end
+  tracks.forEach(t => { if (!visited.has(t.entityId)) sorted.push(t) })
+  return sorted
+})
+
 const sortedTracks = computed(() => {
-  if (!sortField.value) return props.tracks
+  if (!sortField.value) return linkedListTracks.value
   const field = sortField.value
   const dir = sortAsc.value ? 1 : -1
-  return [...props.tracks].sort((a, b) => {
+  return [...linkedListTracks.value].sort((a, b) => {
     const va = a[field] ?? ''
     const vb = b[field] ?? ''
     if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir
