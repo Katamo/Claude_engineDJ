@@ -262,13 +262,34 @@ async function removeFromCollection() {
   const track = rowContextMenu.value.track
   closeRowContextMenu()
   if (!track || track.trackId == null) return
-  if (!confirm(`Permanently remove "${track.title || 'this track'}" from the collection and all playlists?`)) return
-  try {
-    await window.api.removeFromCollection(track.trackId)
-    selectedTrackIds.value = new Set()
-    emit('tracks-updated')
-  } catch (err) {
-    console.error('Failed to remove track from collection:', err)
+
+  const trackKey = track.entityId || track.trackId
+  const removeSelected = selectedTrackIds.value.has(trackKey) && selectedTrackIds.value.size > 1
+
+  if (removeSelected) {
+    const trackIds = sortedTracks.value
+      .filter(t => selectedTrackIds.value.has(t.entityId || t.trackId))
+      .map(t => t.trackId)
+      .filter(id => id != null)
+    if (!confirm(`Permanently remove ${trackIds.length} tracks from the collection and all playlists?`)) return
+    try {
+      for (const id of trackIds) {
+        await window.api.removeFromCollection(id)
+      }
+      selectedTrackIds.value = new Set()
+      emit('tracks-updated')
+    } catch (err) {
+      console.error('Failed to remove tracks from collection:', err)
+    }
+  } else {
+    if (!confirm(`Permanently remove "${track.title || 'this track'}" from the collection and all playlists?`)) return
+    try {
+      await window.api.removeFromCollection(track.trackId)
+      selectedTrackIds.value = new Set()
+      emit('tracks-updated')
+    } catch (err) {
+      console.error('Failed to remove track from collection:', err)
+    }
   }
 }
 
@@ -512,7 +533,7 @@ onUnmounted(() => {
         </div>
         <div class="context-menu-item context-menu-delete" @click="removeFromCollection">
           <span class="context-menu-icon">&#10060;</span>
-          <span>Remove from Collection</span>
+          <span>{{ selectedTrackIds.size > 1 && selectedTrackIds.has(rowContextMenu.track?.entityId || rowContextMenu.track?.trackId) ? `Remove ${selectedTrackIds.size} from Collection` : 'Remove from Collection' }}</span>
         </div>
       </div>
     </Teleport>
