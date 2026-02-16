@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] - 2026-02-16
+
+### Added
+
+- Multi-select tracks with Shift+click (range) and Ctrl+click (toggle)
+- Drag & drop multiple selected tracks to playlists in the sidebar
+- Remove track from playlist via right-click context menu
+- Batch remove multiple selected tracks from a playlist
+- Remove track permanently from collection and all playlists ("Remove from Collection")
+- Batch remove multiple selected tracks from collection
+- Camelot wheel key notation option in Settings > Display
+- Rainbow-colored key column based on Camelot wheel numbers (1=red through 12=pink)
+- Context menu labels update dynamically to show selection count
+
 ## [0.1.0] - 2026-02-16
 
 ### Added

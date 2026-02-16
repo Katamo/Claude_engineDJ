@@ -85,3 +85,15 @@
 41. lets make a release branch with the current features in develop, then merge to master, create a README.md file with the description and instructions to launch the app, use semver to label the release, this release will be the 0.1, create a file with the license. upload all the contents to this repo https://github.com/Katamo/Claude_engineDJ.git
 
 42. create a log semver file with the release summary
+
+43. allow multiselect tracks in playlist view by shift or ctrl clicking, next allow drag&drop these group of selected tracks to another playlist
+
+44. add an option in contextual menu to remove track from a playlist
+
+45. allow to remove multiple selected tracks from a playlist
+
+46. add an option in the track contextual menu to remove a track permanently from the collection and all the playlists, name it "Remove from Collection"
+
+47. allow delete from collection when multiselect tracks
+
+48. key column shows music key values, add an option in options settings screen to change from standard key notation to camelot wheel notation, update the key notation in the tableview, also add a different color for every key based on rainbow colors and starting by camelot notation 1 = red

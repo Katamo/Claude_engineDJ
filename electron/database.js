@@ -392,6 +392,87 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
     return { success: true, entityId: newId }
   })
 
+  ipcMain.handle('db:removeTrackFromPlaylist', async (_event, listId, entityId) => {
+    await ensureInit()
+    const d = ensureDb()
+
+    const entity = queryOne('SELECT id, nextEntityId FROM PlaylistEntity WHERE id = ? AND listId = ?', [entityId, listId])
+    if (!entity) return { success: false, error: 'Entity not found' }
+
+    // Fix linked list: find the entity pointing to this one
+    const prev = queryOne('SELECT id FROM PlaylistEntity WHERE listId = ? AND nextEntityId = ?', [listId, entityId])
+    if (prev) {
+      d.run('UPDATE PlaylistEntity SET nextEntityId = ? WHERE id = ?', [entity.nextEntityId || 0, prev.id])
+    }
+
+    // Delete the entity
+    d.run('DELETE FROM PlaylistEntity WHERE id = ?', [entityId])
+
+    saveDatabase()
+    return { success: true }
+  })
+
+  ipcMain.handle('db:removeTracksFromPlaylist', async (_event, listId, entityIds) => {
+    await ensureInit()
+    const d = ensureDb()
+
+    const removeSet = new Set(entityIds)
+
+    // Get all entities for this playlist to rebuild the linked list
+    const entities = queryAll('SELECT id, nextEntityId FROM PlaylistEntity WHERE listId = ?', [listId])
+    const byId = new Map(entities.map(e => [e.id, e]))
+
+    // For each entity to remove, fix the linked list
+    for (const entityId of entityIds) {
+      const entity = byId.get(entityId)
+      if (!entity) continue
+
+      // Find next entity that is NOT being removed
+      let nextId = entity.nextEntityId || 0
+      while (nextId > 0 && removeSet.has(nextId)) {
+        const next = byId.get(nextId)
+        nextId = next ? (next.nextEntityId || 0) : 0
+      }
+
+      // Find the previous entity pointing to this one
+      const prev = queryOne('SELECT id FROM PlaylistEntity WHERE listId = ? AND nextEntityId = ?', [listId, entityId])
+      if (prev && !removeSet.has(prev.id)) {
+        d.run('UPDATE PlaylistEntity SET nextEntityId = ? WHERE id = ?', [nextId, prev.id])
+      }
+    }
+
+    // Delete all entities
+    for (const entityId of entityIds) {
+      d.run('DELETE FROM PlaylistEntity WHERE id = ?', [entityId])
+    }
+
+    saveDatabase()
+    return { success: true }
+  })
+
+  ipcMain.handle('db:removeFromCollection', async (_event, trackId) => {
+    await ensureInit()
+    const d = ensureDb()
+
+    // Find all playlist entities referencing this track
+    const entities = queryAll('SELECT id, listId, nextEntityId FROM PlaylistEntity WHERE trackId = ?', [trackId])
+
+    // For each entity, fix the linked list in its playlist then delete
+    for (const entity of entities) {
+      const prev = queryOne('SELECT id FROM PlaylistEntity WHERE listId = ? AND nextEntityId = ?', [entity.listId, entity.id])
+      if (prev) {
+        d.run('UPDATE PlaylistEntity SET nextEntityId = ? WHERE id = ?', [entity.nextEntityId || 0, prev.id])
+      }
+      d.run('DELETE FROM PlaylistEntity WHERE id = ?', [entity.id])
+    }
+
+    // Delete the track itself
+    d.run('DELETE FROM Track WHERE id = ?', [trackId])
+
+    saveDatabase()
+    return { success: true }
+  })
+
   ipcMain.handle('db:updateTrack', async (_event, trackId, fields) => {
     await ensureInit()
     const d = ensureDb()

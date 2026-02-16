@@ -385,6 +385,14 @@ html, body, #app {
   background: var(--bg-hover);
 }
 
+.track-row.selected .track-td {
+  background: var(--accent-dim);
+}
+
+.track-row.selected:hover .track-td {
+  background: rgba(255, 107, 0, 0.22);
+}
+
 .track-row.drag-enabled {
   cursor: grab;
 }

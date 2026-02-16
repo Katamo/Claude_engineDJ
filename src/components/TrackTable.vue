@@ -6,7 +6,8 @@ const props = defineProps({
   tracks: Array,
   loading: Boolean,
   hasPlaylist: Boolean,
-  listId: Number
+  listId: Number,
+  keyNotation: { type: String, default: 'standard' }
 })
 
 const emit = defineEmits(['tracks-updated'])
@@ -18,6 +19,40 @@ const rowContextMenu = ref({ visible: false, x: 0, y: 0, track: null })
 const editTrack = ref(null)
 const showEditDialog = ref(false)
 const scrollContainer = ref(null)
+
+// --- Multi-select ---
+const selectedTrackIds = ref(new Set())
+const lastClickedIndex = ref(null)
+
+function onRowClick(e, track, index) {
+  if (e.ctrlKey || e.metaKey) {
+    // Toggle individual track
+    if (selectedTrackIds.value.has(track.entityId || track.trackId)) {
+      selectedTrackIds.value.delete(track.entityId || track.trackId)
+    } else {
+      selectedTrackIds.value.add(track.entityId || track.trackId)
+    }
+    lastClickedIndex.value = index
+  } else if (e.shiftKey && lastClickedIndex.value !== null) {
+    // Range select
+    const from = Math.min(lastClickedIndex.value, index)
+    const to = Math.max(lastClickedIndex.value, index)
+    const newSet = new Set(selectedTrackIds.value)
+    for (let i = from; i <= to; i++) {
+      const t = sortedTracks.value[i]
+      if (t) newSet.add(t.entityId || t.trackId)
+    }
+    selectedTrackIds.value = newSet
+  } else {
+    // Single click — select only this track
+    selectedTrackIds.value = new Set([track.entityId || track.trackId])
+    lastClickedIndex.value = index
+  }
+}
+
+function isSelected(track) {
+  return selectedTrackIds.value.has(track.entityId || track.trackId)
+}
 
 // --- Drag and drop ---
 const dragIndex = ref(null)
@@ -63,6 +98,59 @@ const KEY_MAP = {
   19: 'F', 20: 'G', 21: 'A', 22: 'B', 23: 'Db', 24: 'Eb'
 }
 
+// Camelot wheel: Engine DJ key value → Camelot notation
+const CAMELOT_MAP = {
+  0: '',
+  1: '8A',   // Am
+  2: '10A',  // Bm
+  3: '12A',  // Dbm
+  4: '2A',   // Ebm
+  5: '4A',   // Fm
+  6: '6A',   // Gm
+  7: '1A',   // Abm
+  8: '3A',   // Bbm
+  9: '5A',   // Cm
+  10: '7A',  // Dm
+  11: '9A',  // Em
+  12: '11A', // F#m
+  13: '8B',  // C
+  14: '10B', // D
+  15: '12B', // E
+  16: '2B',  // Gb
+  17: '4B',  // Ab
+  18: '6B',  // Bb
+  19: '7B',  // F
+  20: '9B',  // G
+  21: '11B', // A
+  22: '1B',  // B
+  23: '12B', // Db (enharmonic of B)
+  24: '3B'   // Eb
+}
+
+// Rainbow colors by Camelot number (1-12), 1=red cycling through the spectrum
+const CAMELOT_COLORS = {
+  '1':  '#ff0000', // Red
+  '2':  '#ff5500', // Red-Orange
+  '3':  '#ff9900', // Orange
+  '4':  '#ffcc00', // Yellow-Orange
+  '5':  '#ffff00', // Yellow
+  '6':  '#88dd00', // Yellow-Green
+  '7':  '#00cc00', // Green
+  '8':  '#00ccaa', // Teal
+  '9':  '#0099ff', // Blue
+  '10': '#4444ff', // Indigo
+  '11': '#9933ff', // Violet
+  '12': '#ff33cc', // Pink
+}
+
+function getKeyColor(keyVal) {
+  if (!keyVal) return null
+  const camelot = CAMELOT_MAP[keyVal]
+  if (!camelot) return null
+  const num = camelot.replace(/[AB]/, '')
+  return CAMELOT_COLORS[num] || null
+}
+
 function formatCell(track, colId) {
   const val = track[colId]
   switch (colId) {
@@ -78,7 +166,7 @@ function formatCell(track, colId) {
       if (val) return (val / 100).toFixed(1)
       return ''
     case 'key':
-      return KEY_MAP[val] || ''
+      return props.keyNotation === 'camelot' ? (CAMELOT_MAP[val] || '') : (KEY_MAP[val] || '')
     case 'rating':
       if (!val) return ''
       const stars = Math.round(val / 20)
@@ -197,6 +285,68 @@ function openEditDialog() {
   closeRowContextMenu()
 }
 
+async function removeFromPlaylist() {
+  const track = rowContextMenu.value.track
+  const listId = props.listId
+  closeRowContextMenu()
+  if (!track || listId == null || listId === -1) return
+
+  // Collect entity IDs: if the right-clicked track is in the selection, remove all selected; otherwise just the one
+  const trackKey = track.entityId || track.trackId
+  const removeSelected = selectedTrackIds.value.has(trackKey) && selectedTrackIds.value.size > 1
+  try {
+    if (removeSelected) {
+      const entityIds = sortedTracks.value
+        .filter(t => selectedTrackIds.value.has(t.entityId || t.trackId))
+        .map(t => t.entityId)
+        .filter(id => id != null)
+      await window.api.removeTracksFromPlaylist(listId, entityIds)
+      selectedTrackIds.value = new Set()
+    } else {
+      if (track.entityId == null) return
+      await window.api.removeTrackFromPlaylist(listId, track.entityId)
+    }
+    emit('tracks-updated')
+  } catch (err) {
+    console.error('Failed to remove track(s) from playlist:', err)
+  }
+}
+
+async function removeFromCollection() {
+  const track = rowContextMenu.value.track
+  closeRowContextMenu()
+  if (!track || track.trackId == null) return
+
+  const trackKey = track.entityId || track.trackId
+  const removeSelected = selectedTrackIds.value.has(trackKey) && selectedTrackIds.value.size > 1
+
+  if (removeSelected) {
+    const trackIds = sortedTracks.value
+      .filter(t => selectedTrackIds.value.has(t.entityId || t.trackId))
+      .map(t => t.trackId)
+      .filter(id => id != null)
+    if (!confirm(`Permanently remove ${trackIds.length} tracks from the collection and all playlists?`)) return
+    try {
+      for (const id of trackIds) {
+        await window.api.removeFromCollection(id)
+      }
+      selectedTrackIds.value = new Set()
+      emit('tracks-updated')
+    } catch (err) {
+      console.error('Failed to remove tracks from collection:', err)
+    }
+  } else {
+    if (!confirm(`Permanently remove "${track.title || 'this track'}" from the collection and all playlists?`)) return
+    try {
+      await window.api.removeFromCollection(track.trackId)
+      selectedTrackIds.value = new Set()
+      emit('tracks-updated')
+    } catch (err) {
+      console.error('Failed to remove track from collection:', err)
+    }
+  }
+}
+
 function onEditSaved() {
   showEditDialog.value = false
   editTrack.value = null
@@ -251,11 +401,22 @@ function onResizeEnd() {
 // --- Drag and drop reorder ---
 function onDragStart(e, index) {
   const track = sortedTracks.value[index]
-  // Always set track data for cross-component drops (track → playlist)
-  e.dataTransfer.setData('application/track', JSON.stringify({
-    trackId: track.trackId,
-    databaseUuid: track.databaseUuid || ''
-  }))
+  const trackKey = track.entityId || track.trackId
+
+  // Ensure the dragged track is in the selection
+  if (!selectedTrackIds.value.has(trackKey)) {
+    selectedTrackIds.value = new Set([trackKey])
+    lastClickedIndex.value = index
+  }
+
+  // Build list of selected tracks for cross-component drops
+  const selectedTracks = sortedTracks.value
+    .filter(t => selectedTrackIds.value.has(t.entityId || t.trackId))
+    .map(t => ({ trackId: t.trackId, databaseUuid: t.databaseUuid || '' }))
+
+  e.dataTransfer.setData('application/track', JSON.stringify(
+    selectedTracks.length === 1 ? selectedTracks[0] : selectedTracks
+  ))
   e.dataTransfer.effectAllowed = 'move'
 
   if (canDrag.value) {
@@ -360,10 +521,11 @@ onUnmounted(() => {
           class="track-row"
           :class="[
             dropClass(index),
-            { dragging: dragIndex === index, 'drag-enabled': canDrag }
+            { dragging: dragIndex === index, 'drag-enabled': canDrag, selected: isSelected(track) }
           ]"
           :style="{ width: totalWidth + 'px' }"
           draggable="true"
+          @click="onRowClick($event, track, index)"
           @dragstart="onDragStart($event, index)"
           @dragend="onDragEnd"
           @dragover="onDragOver($event, index)"
@@ -379,7 +541,7 @@ onUnmounted(() => {
             v-for="col in visibleColumns"
             :key="col.id"
             class="track-td"
-            :style="{ width: columnWidths[col.id] + 'px', textAlign: col.align }"
+            :style="{ width: columnWidths[col.id] + 'px', textAlign: col.align, color: col.id === 'key' ? getKeyColor(track.key) : undefined }"
             :title="String(formatCell(track, col.id))"
           >
             {{ formatCell(track, col.id) }}
@@ -418,6 +580,14 @@ onUnmounted(() => {
         <div class="context-menu-item" @click="openEditDialog">
           <span class="context-menu-icon">&#9998;</span>
           <span>Edit Track</span>
+        </div>
+        <div v-if="listId && listId !== -1" class="context-menu-item context-menu-delete" @click="removeFromPlaylist">
+          <span class="context-menu-icon">&#128465;</span>
+          <span>{{ selectedTrackIds.size > 1 && selectedTrackIds.has(rowContextMenu.track?.entityId || rowContextMenu.track?.trackId) ? `Remove ${selectedTrackIds.size} tracks` : 'Remove from Playlist' }}</span>
+        </div>
+        <div class="context-menu-item context-menu-delete" @click="removeFromCollection">
+          <span class="context-menu-icon">&#10060;</span>
+          <span>{{ selectedTrackIds.size > 1 && selectedTrackIds.has(rowContextMenu.track?.entityId || rowContextMenu.track?.trackId) ? `Remove ${selectedTrackIds.size} from Collection` : 'Remove from Collection' }}</span>
         </div>
       </div>
     </Teleport>
