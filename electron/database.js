@@ -1,6 +1,7 @@
 const initSqlJs = require('sql.js')
 const path = require('path')
 const fs = require('fs')
+const zlib = require('zlib')
 
 let DB_DIR = null
 let currentDbFile = null
@@ -58,6 +59,30 @@ function queryOne(sql, params = []) {
   }
   stmt.free()
   return result
+}
+
+function processWaveformBlob(blob) {
+  if (!blob || blob.length < 5) return null
+  try {
+    // Skip 4-byte header, then decompress zlib data
+    const compressed = Buffer.from(blob.buffer || blob).slice(4)
+    const decompressed = zlib.inflateSync(compressed)
+    const entryCount = Math.floor(decompressed.length / 3)
+    // Downsample to ~60 bars for the small preview
+    const targetBars = 60
+    const step = Math.max(1, Math.floor(entryCount / targetBars))
+    const bars = []
+    for (let i = 0; i < entryCount && bars.length < targetBars; i += step) {
+      const offset = i * 3
+      const low = decompressed[offset] || 0
+      const mid = decompressed[offset + 1] || 0
+      const high = decompressed[offset + 2] || 0
+      bars.push({ low, mid, high })
+    }
+    return bars
+  } catch (e) {
+    return null
+  }
 }
 
 function registerDatabaseHandlers(ipcMain, dbPath) {
@@ -471,6 +496,25 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
 
     saveDatabase()
     return { success: true }
+  })
+
+  ipcMain.handle('db:getWaveforms', async (_event, trackIds) => {
+    await ensureInit()
+    const result = {}
+    console.log('[waveform] getWaveforms called with', trackIds?.length, 'trackIds')
+    for (const trackId of trackIds) {
+      try {
+        const row = queryOne('SELECT overviewWaveFormData FROM PerformanceData WHERE trackId = ?', [trackId])
+        if (row && row.overviewWaveFormData) {
+          const bars = processWaveformBlob(row.overviewWaveFormData)
+          if (bars) result[trackId] = bars
+        }
+      } catch (e) {
+        console.log('[waveform] error for trackId', trackId, e.message)
+      }
+    }
+    console.log('[waveform] returning', Object.keys(result).length, 'waveforms')
+    return result
   })
 
   ipcMain.handle('db:updateTrack', async (_event, trackId, fields) => {
