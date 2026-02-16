@@ -458,6 +458,38 @@ html, body, #app {
   margin: -2px 0;
 }
 
+/* --- Preview Cell --- */
+.preview-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.play-btn {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+  line-height: 1;
+}
+
+.play-btn:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
 /* --- Column Context Menu --- */
 .column-context-menu {
   position: fixed;

@@ -137,6 +137,17 @@ function isSelected(track) {
   return selectedTrackIds.value.has(track.entityId || track.trackId)
 }
 
+// --- Play/Pause ---
+const playingTrackId = ref(null)
+
+function togglePlay(track) {
+  if (playingTrackId.value === track.trackId) {
+    playingTrackId.value = null
+  } else {
+    playingTrackId.value = track.trackId
+  }
+}
+
 // --- Waveform data ---
 const waveformData = ref(0)
 const waveformCache = {}
@@ -801,11 +812,17 @@ onUnmounted(() => {
               @blur="confirmCellEdit(track)"
               @click.stop
             />
-            <WaveformPreview
-              v-else-if="col.id === 'preview' && waveformData >= 0 && getWaveform(track.trackId)"
-              :bars="getWaveform(track.trackId)"
-            />
-            <span v-else-if="col.id === 'preview'"></span>
+            <div v-else-if="col.id === 'preview'" class="preview-cell">
+              <button
+                class="play-btn"
+                @click.stop="togglePlay(track)"
+                :title="playingTrackId === track.trackId ? 'Pause' : 'Play'"
+              >{{ playingTrackId === track.trackId ? '&#9646;&#9646;' : '&#9654;' }}</button>
+              <WaveformPreview
+                v-if="waveformData >= 0 && getWaveform(track.trackId)"
+                :bars="getWaveform(track.trackId)"
+              />
+            </div>
             <template v-else>{{ formatCell(track, col.id) }}</template>
           </div>
         </div>
