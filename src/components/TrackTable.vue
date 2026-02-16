@@ -250,17 +250,21 @@ function onResizeEnd() {
 
 // --- Drag and drop reorder ---
 function onDragStart(e, index) {
-  if (!canDrag.value) {
-    e.preventDefault()
-    return
-  }
-  isDragging.value = true
-  dragIndex.value = index
+  const track = sortedTracks.value[index]
+  // Always set track data for cross-component drops (track → playlist)
+  e.dataTransfer.setData('application/track', JSON.stringify({
+    trackId: track.trackId,
+    databaseUuid: track.databaseUuid || ''
+  }))
   e.dataTransfer.effectAllowed = 'move'
-  e.dataTransfer.setData('text/plain', String(index))
-  // Make the drag image semi-transparent
-  if (e.target) {
-    e.target.style.opacity = '0.4'
+
+  if (canDrag.value) {
+    isDragging.value = true
+    dragIndex.value = index
+    e.dataTransfer.setData('text/plain', String(index))
+    if (e.target) {
+      e.target.style.opacity = '0.4'
+    }
   }
 }
 
@@ -359,7 +363,7 @@ onUnmounted(() => {
             { dragging: dragIndex === index, 'drag-enabled': canDrag }
           ]"
           :style="{ width: totalWidth + 'px' }"
-          :draggable="canDrag"
+          draggable="true"
           @dragstart="onDragStart($event, index)"
           @dragend="onDragEnd"
           @dragover="onDragOver($event, index)"

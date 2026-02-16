@@ -77,3 +77,5 @@
 37. ordering by other field than id should not update the id column values, for example, order by artist should not update the field id in the table view
 
 38. dont allow to update track position in collection list
+
+39. allow to add tracks to a playlist by drag and drop tracks from the list view to a playlist in the column view

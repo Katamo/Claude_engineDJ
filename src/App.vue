@@ -87,6 +87,21 @@ async function movePlaylist({ playlistId, newParentId }) {
   }
 }
 
+async function addTrackToPlaylist({ listId, trackId, databaseUuid }) {
+  try {
+    const result = await window.api.addTrackToPlaylist(listId, trackId, databaseUuid)
+    if (!result.success) {
+      console.warn('Add track to playlist:', result.error)
+    }
+    // Refresh if viewing the target playlist
+    if (selectedPlaylist.value?.id === listId) {
+      await selectPlaylist(selectedPlaylist.value)
+    }
+  } catch (err) {
+    console.error('Failed to add track to playlist:', err)
+  }
+}
+
 async function reorderPlaylists({ parentListId, orderedIds }) {
   try {
     await window.api.reorderPlaylists(parentListId, orderedIds)
@@ -139,6 +154,7 @@ onMounted(loadData)
           @reorder-playlists="reorderPlaylists"
           @rename-playlist="renamePlaylist"
           @move-playlist="movePlaylist"
+          @add-track-to-playlist="addTrackToPlaylist"
         />
         <div class="main-content">
           <div v-if="selectedPlaylist" class="content-header">

@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('api', {
   saveConfig: (config) => ipcRenderer.invoke('config:save', config),
   selectFolder: () => ipcRenderer.invoke('config:selectFolder'),
   updateTrack: (trackId, fields) => ipcRenderer.invoke('db:updateTrack', trackId, fields),
+  addTrackToPlaylist: (listId, trackId, databaseUuid) => ipcRenderer.invoke('db:addTrackToPlaylist', listId, trackId, databaseUuid),
   reorderPlaylistEntities: (listId, orderedEntityIds) => ipcRenderer.invoke('db:reorderPlaylistEntities', listId, orderedEntityIds),
   createPlaylist: (title, parentListId) => ipcRenderer.invoke('db:createPlaylist', title, parentListId),
   renamePlaylist: (playlistId, newTitle) => ipcRenderer.invoke('db:renamePlaylist', playlistId, newTitle),

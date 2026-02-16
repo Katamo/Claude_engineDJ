@@ -329,6 +329,35 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
     return { success: true, id: newId }
   })
 
+  ipcMain.handle('db:addTrackToPlaylist', async (_event, listId, trackId, databaseUuid) => {
+    await ensureInit()
+    const d = ensureDb()
+
+    // Check if track already exists in this playlist
+    const existing = queryOne('SELECT id FROM PlaylistEntity WHERE listId = ? AND trackId = ? AND databaseUuid = ?', [listId, trackId, databaseUuid || ''])
+    if (existing) return { success: false, error: 'Track already in playlist' }
+
+    // Get next available entity ID
+    const maxId = queryOne('SELECT MAX(id) as maxId FROM PlaylistEntity').maxId || 0
+    const newId = maxId + 1
+
+    // Find the tail of this playlist's entity list
+    const entities = queryAll('SELECT id, nextEntityId FROM PlaylistEntity WHERE listId = ?', [listId])
+    const entityIds = new Set(entities.map(e => e.id))
+    const tail = entities.find(e => !e.nextEntityId || e.nextEntityId === 0 || !entityIds.has(e.nextEntityId))
+
+    // Insert new entity
+    d.run('INSERT INTO PlaylistEntity (id, listId, trackId, databaseUuid, nextEntityId, membershipReference) VALUES (?, ?, ?, ?, 0, 0)', [newId, listId, trackId, databaseUuid || ''])
+
+    // Update tail to point to new entity
+    if (tail) {
+      d.run('UPDATE PlaylistEntity SET nextEntityId = ? WHERE id = ?', [newId, tail.id])
+    }
+
+    saveDatabase()
+    return { success: true, entityId: newId }
+  })
+
   ipcMain.handle('db:updateTrack', async (_event, trackId, fields) => {
     await ensureInit()
     const d = ensureDb()
