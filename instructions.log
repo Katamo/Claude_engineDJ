@@ -85,3 +85,5 @@
 41. lets make a release branch with the current features in develop, then merge to master, create a README.md file with the description and instructions to launch the app, use semver to label the release, this release will be the 0.1, create a file with the license. upload all the contents to this repo https://github.com/Katamo/Claude_engineDJ.git
 
 42. create a log semver file with the release summary
+
+43. allow multiselect tracks in playlist view by shift or ctrl clicking, next allow drag&drop these group of selected tracks to another playlist
