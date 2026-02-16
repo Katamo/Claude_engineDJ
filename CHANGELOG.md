@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2026-02-16
+
+### Added
+
+- Waveform preview in the Preview column rendered from PerformanceData BLOB (low/mid/high frequency bars in blue/cyan/white)
+- Play/pause button in the Preview column for inline audio playback
+- Music drive / root path setting in Options > Audio (default D:\) for audio file location
+- Custom local-audio:// Electron protocol for secure local file streaming (mp3/flac)
+- Inline cell editing on double-click for track metadata fields
+- Multi-select inline editing — updating a cell applies to all selected rows
+- Column reorder by dragging column headers (# column stays fixed)
+- Key column sorting by musical note (Camelot wheel order)
+- Column order, width, and visibility persistence across app restarts (localStorage)
+- Preview column next to # for waveform and playback controls
+- Auto-merge of new columns into persisted column settings
+
 ## [0.2.0] - 2026-02-16
 
 ### Added
