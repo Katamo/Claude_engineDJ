@@ -169,9 +169,60 @@ const ALL_COLUMNS = [
 
 const visibleColumnIds = ref(new Set(ALL_COLUMNS.filter(c => c.default).map(c => c.id)))
 const columnWidths = reactive(Object.fromEntries(ALL_COLUMNS.map(c => [c.id, c.defaultWidth])))
+const columnOrder = ref(ALL_COLUMNS.map(c => c.id))
 
-const visibleColumns = computed(() => ALL_COLUMNS.filter(c => visibleColumnIds.value.has(c.id)))
+const visibleColumns = computed(() => {
+  const colMap = new Map(ALL_COLUMNS.map(c => [c.id, c]))
+  return columnOrder.value.filter(id => visibleColumnIds.value.has(id)).map(id => colMap.get(id))
+})
 const totalWidth = computed(() => visibleColumns.value.reduce((sum, c) => sum + columnWidths[c.id], 0))
+
+// --- Column drag reorder ---
+const dragColId = ref(null)
+const dropColId = ref(null)
+
+function onColDragStart(e, colId) {
+  if (colId === 'position') { e.preventDefault(); return }
+  dragColId.value = colId
+  e.dataTransfer.effectAllowed = 'move'
+  e.dataTransfer.setData('application/column', colId)
+}
+
+function onColDragOver(e, colId) {
+  if (colId === 'position') return
+  if (!dragColId.value || dragColId.value === colId) return
+  e.preventDefault()
+  e.dataTransfer.dropEffect = 'move'
+  dropColId.value = colId
+}
+
+function onColDragLeave(e, colId) {
+  if (dropColId.value === colId) dropColId.value = null
+}
+
+function onColDrop(e, colId) {
+  e.preventDefault()
+  if (!dragColId.value || dragColId.value === colId) { resetColDrag(); return }
+
+  const order = [...columnOrder.value]
+  const fromIdx = order.indexOf(dragColId.value)
+  const toIdx = order.indexOf(colId)
+  if (fromIdx === -1 || toIdx === -1) { resetColDrag(); return }
+
+  order.splice(fromIdx, 1)
+  order.splice(toIdx, 0, dragColId.value)
+  columnOrder.value = order
+  resetColDrag()
+}
+
+function onColDragEnd() {
+  resetColDrag()
+}
+
+function resetColDrag() {
+  dragColId.value = null
+  dropColId.value = null
+}
 
 const KEY_MAP = {
   0: '', 1: 'Am', 2: 'Bm', 3: 'Dbm', 4: 'Ebm', 5: 'Fm', 6: 'Gm',
@@ -588,9 +639,15 @@ onUnmounted(() => {
           v-for="col in visibleColumns"
           :key="col.id"
           class="track-th"
-          :class="{ sorted: sortField === col.id }"
+          :class="{ sorted: sortField === col.id, 'col-drop-target': dropColId === col.id, 'col-dragging': dragColId === col.id }"
           :style="{ width: columnWidths[col.id] + 'px', textAlign: col.align }"
+          :draggable="col.id !== 'position'"
           @click="toggleSort(col.id)"
+          @dragstart="onColDragStart($event, col.id)"
+          @dragover="onColDragOver($event, col.id)"
+          @dragleave="onColDragLeave($event, col.id)"
+          @drop="onColDrop($event, col.id)"
+          @dragend="onColDragEnd"
         >
           <span class="th-label">{{ col.label }}{{ sortIndicator(col.id) }}</span>
           <span class="resize-handle" @mousedown="onResizeStart($event, col.id)"></span>
