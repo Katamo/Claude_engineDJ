@@ -797,6 +797,14 @@ html, body, #app {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
+.context-menu-delete {
+  color: #e55;
+}
+
+.context-menu-delete:hover {
+  background: rgba(238, 85, 85, 0.15);
+}
+
 /* --- Edit Track Dialog --- */
 .edit-overlay {
   position: fixed;

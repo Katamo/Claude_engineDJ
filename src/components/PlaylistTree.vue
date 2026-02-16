@@ -7,7 +7,7 @@ const props = defineProps({
   depth: { type: Number, default: 0 }
 })
 
-const emit = defineEmits(['select', 'reorder', 'rename', 'move', 'add-track'])
+const emit = defineEmits(['select', 'reorder', 'rename', 'move', 'add-track', 'delete'])
 
 const expandedIds = ref(new Set())
 const dragOverId = ref(null)
@@ -71,6 +71,15 @@ function confirmRename(item) {
 function cancelRename() {
   editingId.value = null
   editingTitle.value = ''
+}
+
+function deletePlaylist() {
+  if (!contextMenu.value) return
+  const item = contextMenu.value
+  if (confirm(`Delete playlist "${item.title}"?`)) {
+    emit('delete', { id: item.id })
+  }
+  closeContextMenu()
 }
 
 function onDocClick(e) {
@@ -239,6 +248,7 @@ function onDragEnd() {
         @rename="emit('rename', $event)"
         @move="emit('move', $event)"
         @add-track="emit('add-track', $event)"
+        @delete="emit('delete', $event)"
       />
     </div>
   </div>
@@ -254,6 +264,10 @@ function onDragEnd() {
       <div class="context-menu-item" @click="startRename">
         <span class="context-menu-icon">&#9998;</span>
         Rename
+      </div>
+      <div class="context-menu-item context-menu-delete" @click="deletePlaylist">
+        <span class="context-menu-icon">&#128465;</span>
+        Delete
       </div>
     </div>
   </Teleport>

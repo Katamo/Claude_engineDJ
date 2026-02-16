@@ -10,7 +10,7 @@ const props = defineProps({
   searchQuery: String
 })
 
-const emit = defineEmits(['select-playlist', 'switch-database', 'search', 'create-playlist', 'reorder-playlists', 'rename-playlist', 'move-playlist', 'add-track-to-playlist'])
+const emit = defineEmits(['select-playlist', 'switch-database', 'search', 'create-playlist', 'reorder-playlists', 'rename-playlist', 'move-playlist', 'add-track-to-playlist', 'delete-playlist'])
 
 const showNewPlaylist = ref(false)
 const newPlaylistName = ref('')
@@ -136,6 +136,7 @@ const entityCounts = computed(() => {
         @rename="emit('rename-playlist', $event)"
         @move="emit('move-playlist', $event)"
         @add-track="emit('add-track-to-playlist', $event)"
+        @delete="emit('delete-playlist', $event)"
       />
     </div>
   </div>

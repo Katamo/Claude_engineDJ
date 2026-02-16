@@ -69,6 +69,19 @@ async function createPlaylist(title) {
   }
 }
 
+async function deletePlaylist({ id }) {
+  try {
+    await window.api.deletePlaylist(id)
+    if (selectedPlaylist.value?.id === id) {
+      selectedPlaylist.value = null
+      tracks.value = []
+    }
+    await loadData()
+  } catch (err) {
+    console.error('Failed to delete playlist:', err)
+  }
+}
+
 async function renamePlaylist({ id, title }) {
   try {
     await window.api.renamePlaylist(id, title)
@@ -155,6 +168,7 @@ onMounted(loadData)
           @rename-playlist="renamePlaylist"
           @move-playlist="movePlaylist"
           @add-track-to-playlist="addTrackToPlaylist"
+          @delete-playlist="deletePlaylist"
         />
         <div class="main-content">
           <div v-if="selectedPlaylist" class="content-header">

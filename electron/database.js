@@ -228,6 +228,40 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
     return { success: true }
   })
 
+  ipcMain.handle('db:deletePlaylist', async (_event, playlistId) => {
+    await ensureInit()
+    const d = ensureDb()
+
+    const playlist = queryOne('SELECT id, parentListId, nextListId FROM Playlist WHERE id = ?', [playlistId])
+    if (!playlist) return { success: false, error: 'Playlist not found' }
+
+    // Remove from parent's linked list
+    const siblings = queryAll('SELECT id, nextListId FROM Playlist WHERE parentListId = ?', [playlist.parentListId])
+    const prevSibling = siblings.find(s => s.nextListId === playlistId)
+
+    // Detach first to avoid UNIQUE constraint
+    d.run('UPDATE Playlist SET parentListId = -999, nextListId = -999 WHERE id = ?', [playlistId])
+
+    if (prevSibling) {
+      d.run('UPDATE Playlist SET nextListId = ? WHERE id = ?', [playlist.nextListId || 0, prevSibling.id])
+    }
+
+    // Move children to parent level
+    const children = queryAll('SELECT id FROM Playlist WHERE parentListId = ?', [playlistId])
+    for (const child of children) {
+      d.run('UPDATE Playlist SET parentListId = ? WHERE id = ?', [playlist.parentListId, child.id])
+    }
+
+    // Delete playlist entities
+    d.run('DELETE FROM PlaylistEntity WHERE listId = ?', [playlistId])
+
+    // Delete the playlist
+    d.run('DELETE FROM Playlist WHERE id = ?', [playlistId])
+
+    saveDatabase()
+    return { success: true }
+  })
+
   ipcMain.handle('db:renamePlaylist', async (_event, playlistId, newTitle) => {
     await ensureInit()
     const d = ensureDb()
