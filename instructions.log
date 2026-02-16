@@ -73,3 +73,5 @@
 35. allow track drag and drop reordering only when order by # id is selected
 
 36. the drag and drop reordering does not work when order by id is selected, please fix it
+
+37. ordering by other field than id should not update the id column values, for example, order by artist should not update the field id in the table view

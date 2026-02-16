@@ -63,11 +63,11 @@ const KEY_MAP = {
   19: 'F', 20: 'G', 21: 'A', 22: 'B', 23: 'Db', 24: 'Eb'
 }
 
-function formatCell(track, colId, index) {
+function formatCell(track, colId) {
   const val = track[colId]
   switch (colId) {
     case 'position':
-      return index + 1
+      return positionMap.value.get(track.entityId) ?? ''
     case 'trackId':
     case 'entityId':
       return val ?? ''
@@ -115,6 +115,13 @@ const linkedListTracks = computed(() => {
   // Add any unlinked tracks at the end
   tracks.forEach(t => { if (!visited.has(t.entityId)) sorted.push(t) })
   return sorted
+})
+
+// Map entityId -> original playlist position (1-based)
+const positionMap = computed(() => {
+  const map = new Map()
+  linkedListTracks.value.forEach((t, i) => map.set(t.entityId, i + 1))
+  return map
 })
 
 const sortedTracks = computed(() => {
@@ -366,9 +373,9 @@ onUnmounted(() => {
             :key="col.id"
             class="track-td"
             :style="{ width: columnWidths[col.id] + 'px', textAlign: col.align }"
-            :title="String(formatCell(track, col.id, index))"
+            :title="String(formatCell(track, col.id))"
           >
-            {{ formatCell(track, col.id, index) }}
+            {{ formatCell(track, col.id) }}
           </div>
         </div>
       </div>
