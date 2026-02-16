@@ -1,6 +1,6 @@
 {
   "name": "engine-dj-manager",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Desktop app to manage Engine DJ SQLite databases",
   "main": "electron/main.js",
   "scripts": {
