@@ -4,11 +4,13 @@ import { ref, onMounted } from 'vue'
 const emit = defineEmits(['close', 'config-changed'])
 
 const dbPath = ref('')
+const keyNotation = ref('standard')
 const savedMessage = ref('')
 
 onMounted(async () => {
   const config = await window.api.getConfig()
   dbPath.value = config.dbPath || ''
+  keyNotation.value = config.keyNotation || 'standard'
 })
 
 async function browsePath() {
@@ -19,7 +21,7 @@ async function browsePath() {
 }
 
 async function save() {
-  const config = { dbPath: dbPath.value }
+  const config = { dbPath: dbPath.value, keyNotation: keyNotation.value }
   await window.api.saveConfig(config)
   await window.api.setDbPath(dbPath.value)
   savedMessage.value = 'Settings saved successfully'
@@ -53,6 +55,21 @@ async function save() {
             </div>
             <p class="setting-hint">
               Select the folder containing your Engine DJ .db files (e.g. Engine Library/Database2)
+            </p>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3>Display</h3>
+
+          <div class="setting-row">
+            <label>Key notation</label>
+            <select class="setting-input" v-model="keyNotation">
+              <option value="standard">Standard (Am, C, F#m...)</option>
+              <option value="camelot">Camelot Wheel (1A, 8B, 11A...)</option>
+            </select>
+            <p class="setting-hint">
+              Choose how musical keys are displayed in the track table
             </p>
           </div>
         </div>
