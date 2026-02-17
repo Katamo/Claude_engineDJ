@@ -115,3 +115,7 @@
 56. add a play/pause button in the preview cell field and before the preview component
 
 57. the "file path" field in tracks table stores the path for a song (mp3/flac), starting from drive "D:\". Add in Options screen a field for the origin drive (default "D:\"), prepend it to the file path, and use it to play/stop the song when the play button is clicked
+
+58. refactor the default musicDrive 'D:\' value added in several parts of the code to a constant stored in a file of constants, check if any other value can be moved to that file of constants, for example the string 'standard' used to set the default value for keyNotation
+
+59. use git in the project, there is a master branch and a develop branch, develop is a branch from master and it stores the current developing state, prior to add a new feature create a branch from develop named: feature/current new feature and add the new content to it, when all its working merge the feature branch in to develop
