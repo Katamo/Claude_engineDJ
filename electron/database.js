@@ -3,6 +3,8 @@ const path = require('path')
 const fs = require('fs')
 const zlib = require('zlib')
 
+const DEFAULT_DB_FILE = 'm.db'
+
 let DB_DIR = null
 let currentDbFile = null
 let SQL = null
@@ -91,7 +93,7 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
 
   async function ensureInit() {
     if (!initialized) {
-      await openDatabase('m.db')
+      await openDatabase(DEFAULT_DB_FILE)
       initialized = true
     }
   }

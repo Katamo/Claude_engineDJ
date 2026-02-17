@@ -4,18 +4,19 @@ import Sidebar from './components/Sidebar.vue'
 import TrackTable from './components/TrackTable.vue'
 import StatusBar from './components/StatusBar.vue'
 import SettingsView from './components/SettingsView.vue'
+import { DEFAULT_MUSIC_DRIVE, DEFAULT_KEY_NOTATION, DEFAULT_DB_FILE } from './constants'
 
 const playlists = ref([])
 const databases = ref([])
-const currentDb = ref('m.db')
+const currentDb = ref(DEFAULT_DB_FILE)
 const selectedPlaylist = ref(null)
 const tracks = ref([])
 const stats = ref(null)
 const searchQuery = ref('')
 const loading = ref(false)
 const showSettings = ref(false)
-const keyNotation = ref('standard')
-const musicDrive = ref('D:\\')
+const keyNotation = ref(DEFAULT_KEY_NOTATION)
+const musicDrive = ref(DEFAULT_MUSIC_DRIVE)
 
 async function loadData() {
   try {
@@ -128,14 +129,14 @@ async function reorderPlaylists({ parentListId, orderedIds }) {
 
 async function loadConfig() {
   const config = await window.api.getConfig()
-  keyNotation.value = config.keyNotation || 'standard'
-  musicDrive.value = config.musicDrive || 'D:\\'
+  keyNotation.value = config.keyNotation || DEFAULT_KEY_NOTATION
+  musicDrive.value = config.musicDrive || DEFAULT_MUSIC_DRIVE
 }
 
 async function onConfigChanged() {
   selectedPlaylist.value = null
   tracks.value = []
-  currentDb.value = 'm.db'
+  currentDb.value = DEFAULT_DB_FILE
   await loadConfig()
   await loadData()
 }

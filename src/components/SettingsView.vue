@@ -1,18 +1,19 @@
 <script setup>
 import { ref, onMounted } from 'vue'
+import { DEFAULT_MUSIC_DRIVE, DEFAULT_KEY_NOTATION } from '../constants'
 
 const emit = defineEmits(['close', 'config-changed'])
 
 const dbPath = ref('')
-const keyNotation = ref('standard')
-const musicDrive = ref('D:\\')
+const keyNotation = ref(DEFAULT_KEY_NOTATION)
+const musicDrive = ref(DEFAULT_MUSIC_DRIVE)
 const savedMessage = ref('')
 
 onMounted(async () => {
   const config = await window.api.getConfig()
   dbPath.value = config.dbPath || ''
-  keyNotation.value = config.keyNotation || 'standard'
-  musicDrive.value = config.musicDrive || 'D:\\'
+  keyNotation.value = config.keyNotation || DEFAULT_KEY_NOTATION
+  musicDrive.value = config.musicDrive || DEFAULT_MUSIC_DRIVE
 })
 
 async function browsePath() {

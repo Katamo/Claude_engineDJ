@@ -2,14 +2,15 @@
 import { ref, reactive, computed, nextTick, watch, onMounted, onUnmounted } from 'vue'
 import EditTrackDialog from './EditTrackDialog.vue'
 import WaveformPreview from './WaveformPreview.vue'
+import { DEFAULT_MUSIC_DRIVE, DEFAULT_KEY_NOTATION, KEY_NOTATION_CAMELOT } from '../constants'
 
 const props = defineProps({
   tracks: Array,
   loading: Boolean,
   hasPlaylist: Boolean,
   listId: Number,
-  keyNotation: { type: String, default: 'standard' },
-  musicDrive: { type: String, default: 'D:\\' }
+  keyNotation: { type: String, default: DEFAULT_KEY_NOTATION },
+  musicDrive: { type: String, default: DEFAULT_MUSIC_DRIVE }
 })
 
 const emit = defineEmits(['tracks-updated'])
@@ -150,7 +151,7 @@ function buildTrackPath(track) {
   // Strip leading ../ segments — the music drive is already the resolved root
   while (filePath.startsWith('../')) filePath = filePath.substring(3)
   while (filePath.startsWith('./')) filePath = filePath.substring(2)
-  let drive = (props.musicDrive || 'D:\\').replace(/\\/g, '/')
+  let drive = (props.musicDrive || DEFAULT_MUSIC_DRIVE).replace(/\\/g, '/')
   // Ensure drive ends with /
   if (!drive.endsWith('/')) drive += '/'
   return drive + filePath
@@ -459,7 +460,7 @@ function formatCell(track, colId) {
       if (val) return (val / 100).toFixed(1)
       return ''
     case 'key':
-      return props.keyNotation === 'camelot' ? (CAMELOT_MAP[val] || '') : (KEY_MAP[val] || '')
+      return props.keyNotation === KEY_NOTATION_CAMELOT ? (CAMELOT_MAP[val] || '') : (KEY_MAP[val] || '')
     case 'rating':
       if (!val) return ''
       const stars = Math.round(val / 20)
