@@ -2,7 +2,7 @@
 import { ref, reactive, computed, nextTick, watch, onMounted, onUnmounted } from 'vue'
 import EditTrackDialog from './EditTrackDialog.vue'
 import WaveformPreview from './WaveformPreview.vue'
-import { DEFAULT_MUSIC_DRIVE, DEFAULT_KEY_NOTATION, KEY_NOTATION_CAMELOT } from '../constants'
+import { DEFAULT_MUSIC_DRIVE, DEFAULT_MUSIC_FOLDERS, DEFAULT_KEY_NOTATION, KEY_NOTATION_CAMELOT } from '../constants'
 
 const props = defineProps({
   tracks: Array,
@@ -10,7 +10,8 @@ const props = defineProps({
   hasPlaylist: Boolean,
   listId: Number,
   keyNotation: { type: String, default: DEFAULT_KEY_NOTATION },
-  musicDrive: { type: String, default: DEFAULT_MUSIC_DRIVE }
+  musicDrive: { type: String, default: DEFAULT_MUSIC_DRIVE },
+  musicFolders: { type: Array, default: () => [...DEFAULT_MUSIC_FOLDERS] }
 })
 
 const emit = defineEmits(['tracks-updated'])
@@ -208,7 +209,7 @@ async function checkBrokenPaths() {
     .map(t => ({ trackId: t.trackId, filePath: t.filePath || t.path }))
   if (!filePaths.length) { brokenPaths.value = new Set(); return }
   try {
-    const result = await window.api.checkFilePaths(props.musicDrive || DEFAULT_MUSIC_DRIVE, filePaths)
+    const result = await window.api.checkFilePaths(props.musicDrive || DEFAULT_MUSIC_DRIVE, props.musicFolders || DEFAULT_MUSIC_FOLDERS, filePaths)
     const broken = new Set()
     for (const [trackId, exists] of Object.entries(result)) {
       if (!exists) broken.add(Number(trackId))

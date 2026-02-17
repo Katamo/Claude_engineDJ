@@ -13,14 +13,19 @@ let mainWindow
 const CONFIG_PATH = path.join(app.getPath('userData'), 'config.json')
 
 function loadConfig() {
+  let config
   try {
     if (fs.existsSync(CONFIG_PATH)) {
-      return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'))
+      config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'))
     }
   } catch (e) { /* ignore */ }
-  return {
-    dbPath: path.join(__dirname, '..', '..', 'Engine Library', 'Database2')
+  if (!config) {
+    config = { dbPath: path.join(__dirname, '..', '..', 'Engine Library', 'Database2') }
   }
+  if (!Array.isArray(config.musicFolders)) {
+    config.musicFolders = []
+  }
+  return config
 }
 
 function saveConfig(config) {
@@ -63,6 +68,15 @@ function registerConfigHandlers() {
       title: 'Select Engine DJ Database Folder',
       properties: ['openDirectory'],
       defaultPath: loadConfig().dbPath
+    })
+    if (result.canceled || !result.filePaths.length) return null
+    return result.filePaths[0]
+  })
+
+  ipcMain.handle('config:selectMusicFolder', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: 'Select Music Folder',
+      properties: ['openDirectory']
     })
     if (result.canceled || !result.filePaths.length) return null
     return result.filePaths[0]

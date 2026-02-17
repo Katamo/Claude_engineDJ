@@ -1,12 +1,13 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import { DEFAULT_MUSIC_DRIVE, DEFAULT_KEY_NOTATION } from '../constants'
+import { DEFAULT_MUSIC_DRIVE, DEFAULT_MUSIC_FOLDERS, DEFAULT_KEY_NOTATION } from '../constants'
 
 const emit = defineEmits(['close', 'config-changed'])
 
 const dbPath = ref('')
 const keyNotation = ref(DEFAULT_KEY_NOTATION)
 const musicDrive = ref(DEFAULT_MUSIC_DRIVE)
+const musicFolders = ref([...DEFAULT_MUSIC_FOLDERS])
 const savedMessage = ref('')
 
 onMounted(async () => {
@@ -14,6 +15,7 @@ onMounted(async () => {
   dbPath.value = config.dbPath || ''
   keyNotation.value = config.keyNotation || DEFAULT_KEY_NOTATION
   musicDrive.value = config.musicDrive || DEFAULT_MUSIC_DRIVE
+  musicFolders.value = Array.isArray(config.musicFolders) ? [...config.musicFolders] : [...DEFAULT_MUSIC_FOLDERS]
 })
 
 async function browsePath() {
@@ -23,8 +25,30 @@ async function browsePath() {
   }
 }
 
+async function addMusicFolder() {
+  const selected = await window.api.selectMusicFolder()
+  if (selected && !musicFolders.value.includes(selected)) {
+    musicFolders.value.push(selected)
+  }
+}
+
+function removeMusicFolder(index) {
+  musicFolders.value.splice(index, 1)
+}
+
+function updateMusicFolder(index, value) {
+  musicFolders.value[index] = value
+}
+
 async function save() {
-  const config = { dbPath: dbPath.value, keyNotation: keyNotation.value, musicDrive: musicDrive.value }
+  // Filter out empty entries from musicFolders
+  const folders = musicFolders.value.filter(f => f.trim())
+  const config = {
+    dbPath: dbPath.value,
+    keyNotation: keyNotation.value,
+    musicDrive: musicDrive.value,
+    musicFolders: folders
+  }
   await window.api.saveConfig(config)
   await window.api.setDbPath(dbPath.value)
   savedMessage.value = 'Settings saved successfully'
@@ -75,6 +99,31 @@ async function save() {
             />
             <p class="setting-hint">
               The drive or root path where your music files are stored. This is prepended to the track's file path for playback.
+            </p>
+          </div>
+
+          <div class="setting-row">
+            <label>Music folders</label>
+            <div class="music-folders-list">
+              <div v-for="(folder, index) in musicFolders" :key="index" class="music-folder-item">
+                <input
+                  type="text"
+                  class="setting-input"
+                  :value="folder"
+                  @input="updateMusicFolder(index, $event.target.value)"
+                  placeholder="/path/to/music/folder"
+                />
+                <button
+                  class="btn btn-icon btn-remove"
+                  @click="removeMusicFolder(index)"
+                  title="Remove folder"
+                >&times;</button>
+              </div>
+            </div>
+            <div v-if="!musicFolders.length" class="setting-empty">No additional music folders configured.</div>
+            <button class="btn btn-secondary btn-add-folder" @click="addMusicFolder">+ Add folder</button>
+            <p class="setting-hint">
+              Additional folder locations to search when resolving track file paths. These are checked after the music drive above.
             </p>
           </div>
         </div>

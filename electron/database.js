@@ -500,8 +500,12 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
     return { success: true }
   })
 
-  ipcMain.handle('db:checkFilePaths', async (_event, musicDrive, filePaths) => {
+  ipcMain.handle('db:checkFilePaths', async (_event, musicDrive, musicFolders, filePaths) => {
+    // musicDrive: single root path (e.g. "D:\")
+    // musicFolders: array of additional folder paths
     // filePaths: array of { trackId, filePath }
+    const roots = [musicDrive || '', ...(Array.isArray(musicFolders) ? musicFolders : [])]
+      .filter(r => r)
     const result = {}
     for (const { trackId, filePath } of filePaths) {
       if (!filePath) { result[trackId] = false; continue }
@@ -509,10 +513,15 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
       let normalized = filePath.replace(/\\/g, '/')
       while (normalized.startsWith('../')) normalized = normalized.substring(3)
       while (normalized.startsWith('./')) normalized = normalized.substring(2)
-      let drive = (musicDrive || '').replace(/\\/g, '/')
-      if (drive && !drive.endsWith('/')) drive += '/'
-      const fullPath = path.resolve((drive + normalized).replace(/\//g, path.sep))
-      result[trackId] = fs.existsSync(fullPath)
+      // Try musicDrive first, then each musicFolder
+      let found = false
+      for (const root of roots) {
+        let drive = root.replace(/\\/g, '/')
+        if (!drive.endsWith('/')) drive += '/'
+        const fullPath = path.resolve((drive + normalized).replace(/\//g, path.sep))
+        if (fs.existsSync(fullPath)) { found = true; break }
+      }
+      result[trackId] = found
     }
     return result
   })
