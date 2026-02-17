@@ -506,6 +506,7 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
     const roots = [musicDrive || '', ...(Array.isArray(musicFolders) ? musicFolders : [])]
       .filter(r => r)
     const result = {}
+    if (!filePaths || !filePaths.length) return result
     for (const { trackId, filePath } of filePaths) {
       if (!filePath) { result[trackId] = false; continue }
       // Normalize separators and strip leading ../ or ./
