@@ -21,6 +21,8 @@ Desktop application to browse and manage Denon Engine DJ SQLite databases. Built
 - **Remove from collection** — Permanently delete tracks from the library and all playlists
 - **Waveform preview** — Overview waveform rendered from PerformanceData BLOB with low/mid/high frequency coloring
 - **Audio playback** — Play/pause button in each track row to preview songs directly in the app
+- **Broken file path detection** — Tracks pointing to missing files are highlighted in red in the Collection and playlist views
+- **Multiple music folders** — Configure additional music folder locations in Settings; paths are searched in order when resolving track files
 - **Configurable music drive** — Set the root drive/path for audio files in Options > Audio (default D:\)
 - **Camelot key notation** — Toggle between standard and Camelot wheel key display with rainbow coloring
 - **Key sorting** — Sort by musical key using Camelot wheel order
@@ -69,6 +71,7 @@ On first launch, open **Options** (gear icon in the top menu) to configure:
 
 - **Database folder path** — Path to your Engine DJ `Database2/` folder (e.g. `Engine Library/Database2/`)
 - **Music drive / root path** — The drive or root path where your music files are stored (default `D:\`). This is prepended to track file paths for audio playback.
+- **Music folders** — Additional folder locations to search when resolving track file paths. These are checked after the music drive.
 - **Key notation** — Choose between standard (Am, C, F#m) and Camelot wheel (8A, 8B, 11A) display
 
 The default database file is `m.db`. You can switch between database files using the dropdown in the sidebar.

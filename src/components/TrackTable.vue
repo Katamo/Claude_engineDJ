@@ -2,14 +2,16 @@
 import { ref, reactive, computed, nextTick, watch, onMounted, onUnmounted } from 'vue'
 import EditTrackDialog from './EditTrackDialog.vue'
 import WaveformPreview from './WaveformPreview.vue'
+import { DEFAULT_MUSIC_DRIVE, DEFAULT_MUSIC_FOLDERS, DEFAULT_KEY_NOTATION, KEY_NOTATION_CAMELOT } from '../constants'
 
 const props = defineProps({
   tracks: Array,
   loading: Boolean,
   hasPlaylist: Boolean,
   listId: Number,
-  keyNotation: { type: String, default: 'standard' },
-  musicDrive: { type: String, default: 'D:\\' }
+  keyNotation: { type: String, default: DEFAULT_KEY_NOTATION },
+  musicDrive: { type: String, default: DEFAULT_MUSIC_DRIVE },
+  musicFolders: { type: Array, default: () => [...DEFAULT_MUSIC_FOLDERS] }
 })
 
 const emit = defineEmits(['tracks-updated'])
@@ -150,7 +152,7 @@ function buildTrackPath(track) {
   // Strip leading ../ segments — the music drive is already the resolved root
   while (filePath.startsWith('../')) filePath = filePath.substring(3)
   while (filePath.startsWith('./')) filePath = filePath.substring(2)
-  let drive = (props.musicDrive || 'D:\\').replace(/\\/g, '/')
+  let drive = (props.musicDrive || DEFAULT_MUSIC_DRIVE).replace(/\\/g, '/')
   // Ensure drive ends with /
   if (!drive.endsWith('/')) drive += '/'
   return drive + filePath
@@ -196,6 +198,33 @@ onUnmounted(() => {
     audioElement = null
   }
 })
+
+// --- Broken file path detection ---
+const brokenPaths = ref(new Set())
+
+async function checkBrokenPaths() {
+  if (!props.tracks || !props.tracks.length) { brokenPaths.value = new Set(); return }
+  const filePaths = props.tracks
+    .filter(t => t.trackId != null && (t.filePath || t.path))
+    .map(t => ({ trackId: Number(t.trackId), filePath: String(t.filePath || t.path) }))
+  if (!filePaths.length) { brokenPaths.value = new Set(); return }
+  try {
+    const result = await window.api.checkFilePaths({
+      musicDrive: String(props.musicDrive || DEFAULT_MUSIC_DRIVE),
+      musicFolders: (props.musicFolders || DEFAULT_MUSIC_FOLDERS).map(String),
+      filePaths
+    })
+    const broken = new Set()
+    for (const [trackId, exists] of Object.entries(result)) {
+      if (!exists) broken.add(Number(trackId))
+    }
+    brokenPaths.value = broken
+  } catch (e) {
+    console.error('Failed to check file paths:', e)
+  }
+}
+
+watch(() => props.tracks, checkBrokenPaths, { immediate: true })
 
 // --- Waveform data ---
 const waveformData = ref(0)
@@ -459,7 +488,7 @@ function formatCell(track, colId) {
       if (val) return (val / 100).toFixed(1)
       return ''
     case 'key':
-      return props.keyNotation === 'camelot' ? (CAMELOT_MAP[val] || '') : (KEY_MAP[val] || '')
+      return props.keyNotation === KEY_NOTATION_CAMELOT ? (CAMELOT_MAP[val] || '') : (KEY_MAP[val] || '')
     case 'rating':
       if (!val) return ''
       const stars = Math.round(val / 20)
@@ -827,7 +856,7 @@ onUnmounted(() => {
           class="track-row"
           :class="[
             dropClass(index),
-            { dragging: dragIndex === index, 'drag-enabled': canDrag, selected: isSelected(track) }
+            { dragging: dragIndex === index, 'drag-enabled': canDrag, selected: isSelected(track), 'broken-path': brokenPaths.has(track.trackId) }
           ]"
           :style="{ width: totalWidth + 'px' }"
           draggable="true"

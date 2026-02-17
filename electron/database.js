@@ -3,6 +3,8 @@ const path = require('path')
 const fs = require('fs')
 const zlib = require('zlib')
 
+const DEFAULT_DB_FILE = 'm.db'
+
 let DB_DIR = null
 let currentDbFile = null
 let SQL = null
@@ -91,7 +93,7 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
 
   async function ensureInit() {
     if (!initialized) {
-      await openDatabase('m.db')
+      await openDatabase(DEFAULT_DB_FILE)
       initialized = true
     }
   }
@@ -496,6 +498,32 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
 
     saveDatabase()
     return { success: true }
+  })
+
+  ipcMain.handle('db:checkFilePaths', async (_event, data) => {
+    // data: { musicDrive, musicFolders, filePaths }
+    const { musicDrive, musicFolders, filePaths } = data || {}
+    const roots = [musicDrive || '', ...(Array.isArray(musicFolders) ? musicFolders : [])]
+      .filter(r => r)
+    const result = {}
+    if (!filePaths || !filePaths.length) return result
+    for (const { trackId, filePath } of filePaths) {
+      if (!filePath) { result[trackId] = false; continue }
+      // Normalize separators and strip leading ../ or ./
+      let normalized = filePath.replace(/\\/g, '/')
+      while (normalized.startsWith('../')) normalized = normalized.substring(3)
+      while (normalized.startsWith('./')) normalized = normalized.substring(2)
+      // Try musicDrive first, then each musicFolder
+      let found = false
+      for (const root of roots) {
+        let drive = root.replace(/\\/g, '/')
+        if (!drive.endsWith('/')) drive += '/'
+        const fullPath = path.resolve((drive + normalized).replace(/\//g, path.sep))
+        if (fs.existsSync(fullPath)) { found = true; break }
+      }
+      result[trackId] = found
+    }
+    return result
   })
 
   ipcMain.handle('db:getWaveforms', async (_event, trackIds) => {
