@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] - 2026-02-17
+
+### Added
+
+- Broken file path detection — tracks pointing to missing files are highlighted in red
+- Bulk file existence check via IPC (`db:checkFilePaths`) that verifies track paths against disk
+- Multiple music folders setting — store additional folder locations in Settings > Audio
+- Native folder picker dialog for adding music folders
+- Music folders are searched in order (music drive first, then additional folders) when resolving file paths
+
+### Fixed
+
+- IPC serialization error (`An object could not be cloned`) when checking file paths — sql.js objects now cast to plain values before crossing the IPC bridge
+
 ## [0.3.0] - 2026-02-16
 
 ### Added

@@ -119,3 +119,15 @@
 58. refactor the default musicDrive 'D:\' value added in several parts of the code to a constant stored in a file of constants, check if any other value can be moved to that file of constants, for example the string 'standard' used to set the default value for keyNotation
 
 59. use git in the project, there is a master branch and a develop branch, develop is a branch from master and it stores the current developing state, prior to add a new feature create a branch from develop named: feature/current new feature and add the new content to it, when all its working merge the feature branch in to develop
+
+60. check broken file paths in Collection and highlight in red — when loading tracks, verify each file path exists on disk and flag missing files with red text
+
+61. add a value in options/settings to store several folder routes, this value will store the location for several music folders, add the logic to store more than one value
+
+62. DEFAULT_MUSIC_DRIVE and DEFAULT_MUSIC_FOLDERS are different things, please rollback the changes and create different values for each variable
+
+63. the path check for every track in collection stopped to work, please fix it
+
+64. no, still not working, the app does not detect when a path to a track is broken (fix: IPC structured clone error — sql.js objects need explicit cast to plain values)
+
+65. prepare a release, add the features added to README.md, complete instructions.log and the CHANGELOG
