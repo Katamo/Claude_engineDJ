@@ -500,6 +500,23 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
     return { success: true }
   })
 
+  ipcMain.handle('db:checkFilePaths', async (_event, musicDrive, filePaths) => {
+    // filePaths: array of { trackId, filePath }
+    const result = {}
+    for (const { trackId, filePath } of filePaths) {
+      if (!filePath) { result[trackId] = false; continue }
+      // Normalize separators and strip leading ../ or ./
+      let normalized = filePath.replace(/\\/g, '/')
+      while (normalized.startsWith('../')) normalized = normalized.substring(3)
+      while (normalized.startsWith('./')) normalized = normalized.substring(2)
+      let drive = (musicDrive || '').replace(/\\/g, '/')
+      if (drive && !drive.endsWith('/')) drive += '/'
+      const fullPath = path.resolve((drive + normalized).replace(/\//g, path.sep))
+      result[trackId] = fs.existsSync(fullPath)
+    }
+    return result
+  })
+
   ipcMain.handle('db:getWaveforms', async (_event, trackIds) => {
     await ensureInit()
     const result = {}

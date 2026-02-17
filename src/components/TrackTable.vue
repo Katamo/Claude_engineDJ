@@ -198,6 +198,29 @@ onUnmounted(() => {
   }
 })
 
+// --- Broken file path detection ---
+const brokenPaths = ref(new Set())
+
+async function checkBrokenPaths() {
+  if (!props.tracks || !props.tracks.length) { brokenPaths.value = new Set(); return }
+  const filePaths = props.tracks
+    .filter(t => t.trackId != null && (t.filePath || t.path))
+    .map(t => ({ trackId: t.trackId, filePath: t.filePath || t.path }))
+  if (!filePaths.length) { brokenPaths.value = new Set(); return }
+  try {
+    const result = await window.api.checkFilePaths(props.musicDrive || DEFAULT_MUSIC_DRIVE, filePaths)
+    const broken = new Set()
+    for (const [trackId, exists] of Object.entries(result)) {
+      if (!exists) broken.add(Number(trackId))
+    }
+    brokenPaths.value = broken
+  } catch (e) {
+    console.error('Failed to check file paths:', e)
+  }
+}
+
+watch(() => props.tracks, checkBrokenPaths, { immediate: true })
+
 // --- Waveform data ---
 const waveformData = ref(0)
 const waveformCache = {}
@@ -828,7 +851,7 @@ onUnmounted(() => {
           class="track-row"
           :class="[
             dropClass(index),
-            { dragging: dragIndex === index, 'drag-enabled': canDrag, selected: isSelected(track) }
+            { dragging: dragIndex === index, 'drag-enabled': canDrag, selected: isSelected(track), 'broken-path': brokenPaths.has(track.trackId) }
           ]"
           :style="{ width: totalWidth + 'px' }"
           draggable="true"

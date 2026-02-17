@@ -417,6 +417,10 @@ html, body, #app {
   border-bottom: 2px solid var(--accent);
 }
 
+.track-row.broken-path .track-td {
+  color: #e53935;
+}
+
 .drag-handle {
   width: 24px;
   min-width: 24px;
