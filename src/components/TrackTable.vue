@@ -226,6 +226,45 @@ async function checkBrokenPaths() {
 
 watch(() => props.tracks, checkBrokenPaths, { immediate: true })
 
+// --- Fix broken path ---
+const fixPathDialog = ref({ visible: false, track: null, results: [], loading: false })
+
+async function startFixBrokenPath() {
+  const track = rowContextMenu.value.track
+  closeRowContextMenu()
+  if (!track) return
+  fixPathDialog.value = { visible: true, track, results: [], loading: true }
+  try {
+    const results = await window.api.findMatchingFiles({
+      musicDrive: String(props.musicDrive || DEFAULT_MUSIC_DRIVE),
+      musicFolders: (props.musicFolders || DEFAULT_MUSIC_FOLDERS).map(String),
+      filename: String(track.filename || '')
+    })
+    fixPathDialog.value.results = results || []
+  } catch (e) {
+    console.error('Failed to search for matching files:', e)
+    fixPathDialog.value.results = []
+  } finally {
+    fixPathDialog.value.loading = false
+  }
+}
+
+async function applyFixedPath(result) {
+  const track = fixPathDialog.value.track
+  if (!track || !result) return
+  try {
+    await window.api.updateTrack(Number(track.trackId), { path: result.relativePath })
+    fixPathDialog.value = { visible: false, track: null, results: [], loading: false }
+    emit('tracks-updated')
+  } catch (e) {
+    console.error('Failed to update track path:', e)
+  }
+}
+
+function closeFixPathDialog() {
+  fixPathDialog.value = { visible: false, track: null, results: [], loading: false }
+}
+
 // --- Waveform data ---
 const waveformData = ref(0)
 const waveformCache = {}
@@ -938,6 +977,10 @@ onUnmounted(() => {
           <span class="context-menu-icon">&#9998;</span>
           <span>Edit Track</span>
         </div>
+        <div v-if="brokenPaths.has(rowContextMenu.track?.trackId)" class="context-menu-item context-menu-fix" @click="startFixBrokenPath">
+          <span class="context-menu-icon">&#128269;</span>
+          <span>Fix broken path</span>
+        </div>
         <div v-if="listId && listId !== -1" class="context-menu-item context-menu-delete" @click="removeFromPlaylist">
           <span class="context-menu-icon">&#128465;</span>
           <span>{{ selectedTrackIds.size > 1 && selectedTrackIds.has(rowContextMenu.track?.entityId || rowContextMenu.track?.trackId) ? `Remove ${selectedTrackIds.size} tracks` : 'Remove from Playlist' }}</span>
@@ -956,5 +999,36 @@ onUnmounted(() => {
       @close="showEditDialog = false"
       @save="onEditSaved"
     />
+
+    <!-- Fix broken path dialog -->
+    <Teleport to="body">
+      <div v-if="fixPathDialog.visible" class="edit-overlay" @mousedown.self="closeFixPathDialog">
+        <div class="edit-dialog fix-path-dialog">
+          <div class="edit-header">
+            <h3>Fix broken path</h3>
+            <button class="settings-close" @click="closeFixPathDialog">&times;</button>
+          </div>
+          <div class="fix-path-info">
+            <div class="fix-path-track">{{ fixPathDialog.track?.title || fixPathDialog.track?.filename || 'Unknown' }}</div>
+            <div class="fix-path-filename">{{ fixPathDialog.track?.filename || '' }}</div>
+          </div>
+          <div class="fix-path-body">
+            <div v-if="fixPathDialog.loading" class="fix-path-loading">Searching in music folders...</div>
+            <div v-else-if="!fixPathDialog.results.length" class="fix-path-empty">No matching files found.</div>
+            <div v-else class="fix-path-results">
+              <div
+                v-for="(result, i) in fixPathDialog.results"
+                :key="i"
+                class="fix-path-item"
+                @click="applyFixedPath(result)"
+                :title="result.fullPath"
+              >
+                <span class="fix-path-fullpath">{{ result.fullPath }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>

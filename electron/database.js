@@ -526,6 +526,31 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
     return result
   })
 
+  ipcMain.handle('db:findMatchingFiles', async (_event, data) => {
+    const { musicDrive, musicFolders, filename } = data || {}
+    if (!filename) return []
+    const roots = [musicDrive || '', ...(Array.isArray(musicFolders) ? musicFolders : [])]
+      .filter(r => r)
+    const target = filename.toLowerCase()
+    const results = []
+    for (const root of roots) {
+      const rootDir = path.resolve(root)
+      try {
+        const entries = fs.readdirSync(rootDir, { withFileTypes: true, recursive: true })
+        for (const entry of entries) {
+          if (!entry.isFile()) continue
+          if (entry.name.toLowerCase() !== target) continue
+          // entry.parentPath or entry.path contains the directory (Node 20+)
+          const dir = entry.parentPath || entry.path || ''
+          const fullPath = path.join(dir, entry.name)
+          const relativePath = path.relative(rootDir, fullPath)
+          results.push({ fullPath, relativePath, root })
+        }
+      } catch (e) { /* root dir may not exist */ }
+    }
+    return results
+  })
+
   ipcMain.handle('db:getWaveforms', async (_event, trackIds) => {
     await ensureInit()
     const result = {}
