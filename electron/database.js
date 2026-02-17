@@ -500,10 +500,9 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
     return { success: true }
   })
 
-  ipcMain.handle('db:checkFilePaths', async (_event, musicDrive, musicFolders, filePaths) => {
-    // musicDrive: single root path (e.g. "D:\")
-    // musicFolders: array of additional folder paths
-    // filePaths: array of { trackId, filePath }
+  ipcMain.handle('db:checkFilePaths', async (_event, data) => {
+    // data: { musicDrive, musicFolders, filePaths }
+    const { musicDrive, musicFolders, filePaths } = data || {}
     const roots = [musicDrive || '', ...(Array.isArray(musicFolders) ? musicFolders : [])]
       .filter(r => r)
     const result = {}

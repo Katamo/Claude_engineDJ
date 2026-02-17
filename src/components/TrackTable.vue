@@ -209,7 +209,11 @@ async function checkBrokenPaths() {
     .map(t => ({ trackId: t.trackId, filePath: t.filePath || t.path }))
   if (!filePaths.length) { brokenPaths.value = new Set(); return }
   try {
-    const result = await window.api.checkFilePaths(props.musicDrive || DEFAULT_MUSIC_DRIVE, props.musicFolders || DEFAULT_MUSIC_FOLDERS, filePaths)
+    const result = await window.api.checkFilePaths({
+      musicDrive: props.musicDrive || DEFAULT_MUSIC_DRIVE,
+      musicFolders: props.musicFolders || DEFAULT_MUSIC_FOLDERS,
+      filePaths
+    })
     const broken = new Set()
     for (const [trackId, exists] of Object.entries(result)) {
       if (!exists) broken.add(Number(trackId))
