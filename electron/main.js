@@ -25,6 +25,9 @@ function loadConfig() {
   if (!Array.isArray(config.musicFolders)) {
     config.musicFolders = []
   }
+  if (!Array.isArray(config.excludeFolders)) {
+    config.excludeFolders = []
+  }
   return config
 }
 

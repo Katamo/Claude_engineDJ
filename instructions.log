@@ -131,3 +131,19 @@
 64. no, still not working, the app does not detect when a path to a track is broken (fix: IPC structured clone error — sql.js objects need explicit cast to plain values)
 
 65. prepare a release, add the features added to README.md, complete instructions.log and the CHANGELOG
+
+66. add an option in the contextual menu for a track, name it 'Fix broken path', to find the correct location when the file path for a track is broken, make a recursive search in the music folders set in settings, show in a popup the posible results that match the filename and properties and allow to select the correct one
+
+67. when search for a track broken path try to compare also with tracks with similar filesize or very similar filenames
+
+68. add 'exclude folders from search' in options settings, to add excluded folders from track search, the behavior its similar to the funtionality used to add music folders in options settings
+
+69. exclude $RECYCLE.BIN from search
+
+70. add in options settings a percentual selector to refine search by similar size from exact to 10%
+
+71. exact filesize search is not working it shows results with different filesizes (fix: 0 was treated as falsy, falling back to default 10%)
+
+72. add in popup search results, the original filesize
+
+73. prepare a release

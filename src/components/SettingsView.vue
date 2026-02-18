@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import { DEFAULT_MUSIC_DRIVE, DEFAULT_MUSIC_FOLDERS, DEFAULT_KEY_NOTATION } from '../constants'
+import { DEFAULT_MUSIC_DRIVE, DEFAULT_MUSIC_FOLDERS, DEFAULT_EXCLUDE_FOLDERS, DEFAULT_SIZE_TOLERANCE, DEFAULT_KEY_NOTATION } from '../constants'
 
 const emit = defineEmits(['close', 'config-changed'])
 
@@ -8,6 +8,8 @@ const dbPath = ref('')
 const keyNotation = ref(DEFAULT_KEY_NOTATION)
 const musicDrive = ref(DEFAULT_MUSIC_DRIVE)
 const musicFolders = ref([...DEFAULT_MUSIC_FOLDERS])
+const excludeFolders = ref([...DEFAULT_EXCLUDE_FOLDERS])
+const sizeTolerance = ref(DEFAULT_SIZE_TOLERANCE)
 const savedMessage = ref('')
 
 onMounted(async () => {
@@ -16,6 +18,8 @@ onMounted(async () => {
   keyNotation.value = config.keyNotation || DEFAULT_KEY_NOTATION
   musicDrive.value = config.musicDrive || DEFAULT_MUSIC_DRIVE
   musicFolders.value = Array.isArray(config.musicFolders) ? [...config.musicFolders] : [...DEFAULT_MUSIC_FOLDERS]
+  excludeFolders.value = Array.isArray(config.excludeFolders) ? [...config.excludeFolders] : [...DEFAULT_EXCLUDE_FOLDERS]
+  sizeTolerance.value = config.sizeTolerance != null ? config.sizeTolerance : DEFAULT_SIZE_TOLERANCE
 })
 
 async function browsePath() {
@@ -40,14 +44,32 @@ function updateMusicFolder(index, value) {
   musicFolders.value[index] = value
 }
 
+async function addExcludeFolder() {
+  const selected = await window.api.selectMusicFolder()
+  if (selected && !excludeFolders.value.includes(selected)) {
+    excludeFolders.value.push(selected)
+  }
+}
+
+function removeExcludeFolder(index) {
+  excludeFolders.value.splice(index, 1)
+}
+
+function updateExcludeFolder(index, value) {
+  excludeFolders.value[index] = value
+}
+
 async function save() {
   // Filter out empty entries from musicFolders
   const folders = musicFolders.value.filter(f => f.trim())
+  const excluded = excludeFolders.value.filter(f => f.trim())
   const config = {
     dbPath: dbPath.value,
     keyNotation: keyNotation.value,
     musicDrive: musicDrive.value,
-    musicFolders: folders
+    musicFolders: folders,
+    excludeFolders: excluded,
+    sizeTolerance: sizeTolerance.value
   }
   await window.api.saveConfig(config)
   await window.api.setDbPath(dbPath.value)
@@ -124,6 +146,54 @@ async function save() {
             <button class="btn btn-secondary btn-add-folder" @click="addMusicFolder">+ Add folder</button>
             <p class="setting-hint">
               Additional folder locations to search when resolving track file paths. These are checked after the music drive above.
+            </p>
+          </div>
+
+          <div class="setting-row">
+            <label>Exclude folders from search</label>
+            <div class="music-folders-list">
+              <div v-for="(folder, index) in excludeFolders" :key="index" class="music-folder-item">
+                <input
+                  type="text"
+                  class="setting-input"
+                  :value="folder"
+                  @input="updateExcludeFolder(index, $event.target.value)"
+                  placeholder="/path/to/excluded/folder"
+                />
+                <button
+                  class="btn btn-icon btn-remove"
+                  @click="removeExcludeFolder(index)"
+                  title="Remove folder"
+                >&times;</button>
+              </div>
+            </div>
+            <div v-if="!excludeFolders.length" class="setting-empty">No excluded folders configured.</div>
+            <button class="btn btn-secondary btn-add-folder" @click="addExcludeFolder">+ Add folder</button>
+            <p class="setting-hint">
+              Folders to skip when searching for broken track paths. Files inside these folders will be ignored.
+            </p>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3>Search</h3>
+
+          <div class="setting-row">
+            <label>Similar size tolerance: {{ sizeTolerance }}%</label>
+            <div class="range-input-group">
+              <span class="range-label">0%</span>
+              <input
+                type="range"
+                class="setting-range"
+                v-model.number="sizeTolerance"
+                min="0"
+                max="10"
+                step="0.5"
+              />
+              <span class="range-label">10%</span>
+            </div>
+            <p class="setting-hint">
+              Tolerance for matching tracks by file size when fixing broken paths. 0% = exact size only, 10% = wider match.
             </p>
           </div>
         </div>

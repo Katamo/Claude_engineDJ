@@ -526,6 +526,97 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
     return result
   })
 
+  ipcMain.handle('db:findMatchingFiles', async (_event, data) => {
+    const { musicDrive, musicFolders, excludeFolders, filename, fileType, bitrate, length: trackLength, sizeTolerance } = data || {}
+    if (!filename) return []
+    const roots = [musicDrive || '', ...(Array.isArray(musicFolders) ? musicFolders : [])]
+      .filter(r => r)
+    // Normalize excluded folders for comparison
+    const ALWAYS_EXCLUDED = ['$RECYCLE.BIN', 'System Volume Information']
+    const excluded = (Array.isArray(excludeFolders) ? excludeFolders : [])
+      .filter(r => r)
+      .map(f => path.resolve(f).toLowerCase())
+    const target = filename.toLowerCase()
+    const targetExt = path.extname(target).toLowerCase()
+    const targetStem = path.basename(target, targetExt).toLowerCase()
+    // Estimate file size from bitrate (kbps) and length (seconds)
+    const estimatedSize = (bitrate && trackLength) ? (bitrate * 1000 / 8) * trackLength : 0
+    const results = []
+    const seen = new Set()
+
+    for (const root of roots) {
+      const rootDir = path.resolve(root)
+      let entries
+      try {
+        entries = fs.readdirSync(rootDir, { withFileTypes: true, recursive: true })
+      } catch (e) { continue }
+      for (const entry of entries) {
+        if (!entry.isFile()) continue
+        // Skip files inside excluded or system folders
+        const dir = entry.parentPath || entry.path || ''
+        const dirResolved = path.resolve(dir).toLowerCase()
+        const dirParts = dirResolved.split(path.sep)
+        if (ALWAYS_EXCLUDED.some(name => dirParts.includes(name.toLowerCase()))) continue
+        if (excluded.some(ex => dirResolved === ex || dirResolved.startsWith(ex + path.sep))) continue
+        const entryName = entry.name.toLowerCase()
+        const entryExt = path.extname(entryName).toLowerCase()
+        const entryStem = path.basename(entryName, entryExt).toLowerCase()
+        const fullPath = path.join(dir, entry.name)
+        if (seen.has(fullPath)) continue
+
+        // Match type: exact, similar name, or similar size
+        let matchType = null
+        if (entryName === target) {
+          matchType = 'exact'
+        } else if (entryExt === targetExt) {
+          // Similar filename: stem contains the other or differs by few chars
+          if (entryStem.includes(targetStem) || targetStem.includes(entryStem)) {
+            matchType = 'similar name'
+          } else {
+            // Levenshtein-like: check if stems differ by at most ~20% of length
+            const maxLen = Math.max(entryStem.length, targetStem.length)
+            if (maxLen > 0 && maxLen <= 300) {
+              let dist = 0
+              const a = targetStem, b = entryStem
+              // Simple character diff (not full Levenshtein, but fast)
+              const longer = a.length >= b.length ? a : b
+              const shorter = a.length < b.length ? a : b
+              dist = longer.length - shorter.length
+              for (let i = 0; i < shorter.length; i++) {
+                if (shorter[i] !== longer[i]) dist++
+              }
+              if (dist <= Math.ceil(maxLen * 0.2)) {
+                matchType = 'similar name'
+              }
+            }
+          }
+          // Check file size similarity if we have an estimate
+          if (!matchType && estimatedSize > 0) {
+            try {
+              const stat = fs.statSync(fullPath)
+              const sizeDiff = Math.abs(stat.size - estimatedSize) / estimatedSize
+              const tolerance = (sizeTolerance != null ? sizeTolerance : 10) / 100
+              if (sizeDiff <= tolerance) {
+                matchType = 'similar size'
+              }
+            } catch (e) { /* skip */ }
+          }
+        }
+
+        if (!matchType) continue
+        seen.add(fullPath)
+        const relativePath = path.relative(rootDir, fullPath)
+        let fileSize = null
+        try { fileSize = fs.statSync(fullPath).size } catch (e) { /* skip */ }
+        results.push({ fullPath, relativePath, root, matchType, fileSize })
+      }
+    }
+    // Sort: exact first, then similar name, then similar size
+    const order = { exact: 0, 'similar name': 1, 'similar size': 2 }
+    results.sort((a, b) => (order[a.matchType] ?? 9) - (order[b.matchType] ?? 9))
+    return results
+  })
+
   ipcMain.handle('db:getWaveforms', async (_event, trackIds) => {
     await ensureInit()
     const result = {}
