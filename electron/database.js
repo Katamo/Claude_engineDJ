@@ -532,6 +532,7 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
     const roots = [musicDrive || '', ...(Array.isArray(musicFolders) ? musicFolders : [])]
       .filter(r => r)
     // Normalize excluded folders for comparison
+    const ALWAYS_EXCLUDED = ['$RECYCLE.BIN', 'System Volume Information']
     const excluded = (Array.isArray(excludeFolders) ? excludeFolders : [])
       .filter(r => r)
       .map(f => path.resolve(f).toLowerCase())
@@ -551,9 +552,11 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
       } catch (e) { continue }
       for (const entry of entries) {
         if (!entry.isFile()) continue
-        // Skip files inside excluded folders
+        // Skip files inside excluded or system folders
         const dir = entry.parentPath || entry.path || ''
         const dirResolved = path.resolve(dir).toLowerCase()
+        const dirParts = dirResolved.split(path.sep)
+        if (ALWAYS_EXCLUDED.some(name => dirParts.includes(name.toLowerCase()))) continue
         if (excluded.some(ex => dirResolved === ex || dirResolved.startsWith(ex + path.sep))) continue
         const entryName = entry.name.toLowerCase()
         const entryExt = path.extname(entryName).toLowerCase()
