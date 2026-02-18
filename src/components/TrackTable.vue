@@ -2,7 +2,7 @@
 import { ref, reactive, computed, nextTick, watch, onMounted, onUnmounted } from 'vue'
 import EditTrackDialog from './EditTrackDialog.vue'
 import WaveformPreview from './WaveformPreview.vue'
-import { DEFAULT_MUSIC_DRIVE, DEFAULT_MUSIC_FOLDERS, DEFAULT_EXCLUDE_FOLDERS, DEFAULT_KEY_NOTATION, KEY_NOTATION_CAMELOT } from '../constants'
+import { DEFAULT_MUSIC_DRIVE, DEFAULT_MUSIC_FOLDERS, DEFAULT_EXCLUDE_FOLDERS, DEFAULT_SIZE_TOLERANCE, DEFAULT_KEY_NOTATION, KEY_NOTATION_CAMELOT } from '../constants'
 
 const props = defineProps({
   tracks: Array,
@@ -12,7 +12,8 @@ const props = defineProps({
   keyNotation: { type: String, default: DEFAULT_KEY_NOTATION },
   musicDrive: { type: String, default: DEFAULT_MUSIC_DRIVE },
   musicFolders: { type: Array, default: () => [...DEFAULT_MUSIC_FOLDERS] },
-  excludeFolders: { type: Array, default: () => [...DEFAULT_EXCLUDE_FOLDERS] }
+  excludeFolders: { type: Array, default: () => [...DEFAULT_EXCLUDE_FOLDERS] },
+  sizeTolerance: { type: Number, default: DEFAULT_SIZE_TOLERANCE }
 })
 
 const emit = defineEmits(['tracks-updated'])
@@ -243,7 +244,8 @@ async function startFixBrokenPath() {
       filename: String(track.filename || ''),
       fileType: String(track.fileType || ''),
       bitrate: Number(track.bitrate) || 0,
-      length: Number(track.length) || 0
+      length: Number(track.length) || 0,
+      sizeTolerance: props.sizeTolerance != null ? Number(props.sizeTolerance) : DEFAULT_SIZE_TOLERANCE
     })
     fixPathDialog.value.results = results || []
   } catch (e) {
@@ -1023,6 +1025,7 @@ onUnmounted(() => {
           <div class="fix-path-info">
             <div class="fix-path-track">{{ fixPathDialog.track?.title || fixPathDialog.track?.filename || 'Unknown' }}</div>
             <div class="fix-path-filename">{{ fixPathDialog.track?.filename || '' }}</div>
+            <div v-if="fixPathDialog.track?.bitrate && fixPathDialog.track?.length" class="fix-path-original-size">Original size (estimated): {{ formatFileSize(Math.round((fixPathDialog.track.bitrate * 1000 / 8) * fixPathDialog.track.length)) }}</div>
           </div>
           <div class="fix-path-body">
             <div v-if="fixPathDialog.loading" class="fix-path-loading">Searching in music folders...</div>

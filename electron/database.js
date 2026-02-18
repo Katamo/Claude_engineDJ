@@ -527,7 +527,7 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
   })
 
   ipcMain.handle('db:findMatchingFiles', async (_event, data) => {
-    const { musicDrive, musicFolders, excludeFolders, filename, fileType, bitrate, length: trackLength } = data || {}
+    const { musicDrive, musicFolders, excludeFolders, filename, fileType, bitrate, length: trackLength, sizeTolerance } = data || {}
     if (!filename) return []
     const roots = [musicDrive || '', ...(Array.isArray(musicFolders) ? musicFolders : [])]
       .filter(r => r)
@@ -595,7 +595,8 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
             try {
               const stat = fs.statSync(fullPath)
               const sizeDiff = Math.abs(stat.size - estimatedSize) / estimatedSize
-              if (sizeDiff <= 0.1) {
+              const tolerance = (sizeTolerance != null ? sizeTolerance : 10) / 100
+              if (sizeDiff <= tolerance) {
                 matchType = 'similar size'
               }
             } catch (e) { /* skip */ }

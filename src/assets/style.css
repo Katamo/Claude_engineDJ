@@ -819,6 +819,25 @@ html, body, #app {
   padding: 8px 0;
 }
 
+.range-input-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.range-input-group .range-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  min-width: 24px;
+}
+
+.setting-range {
+  flex: 1;
+  accent-color: var(--accent);
+  height: 4px;
+  cursor: pointer;
+}
+
 .settings-footer {
   display: flex;
   align-items: center;
@@ -1034,6 +1053,12 @@ html, body, #app {
   font-size: 12px;
   color: var(--text-secondary);
   font-family: monospace;
+  margin-top: 4px;
+}
+
+.fix-path-original-size {
+  font-size: 11px;
+  color: var(--text-muted);
   margin-top: 4px;
 }
 

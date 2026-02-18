@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import { DEFAULT_MUSIC_DRIVE, DEFAULT_MUSIC_FOLDERS, DEFAULT_EXCLUDE_FOLDERS, DEFAULT_KEY_NOTATION } from '../constants'
+import { DEFAULT_MUSIC_DRIVE, DEFAULT_MUSIC_FOLDERS, DEFAULT_EXCLUDE_FOLDERS, DEFAULT_SIZE_TOLERANCE, DEFAULT_KEY_NOTATION } from '../constants'
 
 const emit = defineEmits(['close', 'config-changed'])
 
@@ -9,6 +9,7 @@ const keyNotation = ref(DEFAULT_KEY_NOTATION)
 const musicDrive = ref(DEFAULT_MUSIC_DRIVE)
 const musicFolders = ref([...DEFAULT_MUSIC_FOLDERS])
 const excludeFolders = ref([...DEFAULT_EXCLUDE_FOLDERS])
+const sizeTolerance = ref(DEFAULT_SIZE_TOLERANCE)
 const savedMessage = ref('')
 
 onMounted(async () => {
@@ -18,6 +19,7 @@ onMounted(async () => {
   musicDrive.value = config.musicDrive || DEFAULT_MUSIC_DRIVE
   musicFolders.value = Array.isArray(config.musicFolders) ? [...config.musicFolders] : [...DEFAULT_MUSIC_FOLDERS]
   excludeFolders.value = Array.isArray(config.excludeFolders) ? [...config.excludeFolders] : [...DEFAULT_EXCLUDE_FOLDERS]
+  sizeTolerance.value = config.sizeTolerance != null ? config.sizeTolerance : DEFAULT_SIZE_TOLERANCE
 })
 
 async function browsePath() {
@@ -66,7 +68,8 @@ async function save() {
     keyNotation: keyNotation.value,
     musicDrive: musicDrive.value,
     musicFolders: folders,
-    excludeFolders: excluded
+    excludeFolders: excluded,
+    sizeTolerance: sizeTolerance.value
   }
   await window.api.saveConfig(config)
   await window.api.setDbPath(dbPath.value)
@@ -168,6 +171,29 @@ async function save() {
             <button class="btn btn-secondary btn-add-folder" @click="addExcludeFolder">+ Add folder</button>
             <p class="setting-hint">
               Folders to skip when searching for broken track paths. Files inside these folders will be ignored.
+            </p>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3>Search</h3>
+
+          <div class="setting-row">
+            <label>Similar size tolerance: {{ sizeTolerance }}%</label>
+            <div class="range-input-group">
+              <span class="range-label">0%</span>
+              <input
+                type="range"
+                class="setting-range"
+                v-model.number="sizeTolerance"
+                min="0"
+                max="10"
+                step="0.5"
+              />
+              <span class="range-label">10%</span>
+            </div>
+            <p class="setting-hint">
+              Tolerance for matching tracks by file size when fixing broken paths. 0% = exact size only, 10% = wider match.
             </p>
           </div>
         </div>
