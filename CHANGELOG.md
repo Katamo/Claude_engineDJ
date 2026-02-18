@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.5.0] - 2026-02-18
+
+### Added
+
+- **Fix broken path** context menu action — right-click a broken (red) track to search configured music folders for the correct file
+- Fuzzy file matching — searches by exact filename, similar name (substring/character diff), and similar file size (bitrate × length estimation)
+- Fix path results popup with match type badges (exact/similar name/similar size), file sizes, and original estimated size for comparison
+- **Exclude folders from search** setting — configure folders to skip when searching for broken track paths (Settings > Audio)
+- Always-excluded system folders ($RECYCLE.BIN, System Volume Information) in file search
+- **Similar size tolerance** setting — configurable slider (0–10% in 0.5% increments) to control file size matching sensitivity (Settings > Search)
+
 ## [0.4.0] - 2026-02-17
 
 ### Added
