@@ -21,11 +21,14 @@ Desktop application to browse and manage Denon Engine DJ SQLite databases. Built
 - **Remove from collection** — Permanently delete tracks from the library and all playlists
 - **Waveform preview** — Overview waveform rendered from PerformanceData BLOB with low/mid/high frequency coloring
 - **Audio playback** — Play/pause button in each track row to preview songs directly in the app
+- **Folders view** — Browse audio files directly from the filesystem with a tab-based navigation (Playlists / Folders)
+- **Folder tree navigation** — Hierarchical folder tree built from configured music folders with track counts
+- **File table** — Dedicated lightweight table for folder files with sorting, column customization, and audio playback
 - **Broken file path detection** — Tracks pointing to missing files are highlighted in red in the Collection and playlist views
 - **Fix broken path** — Right-click a broken track to search music folders for the correct file; matches by exact name, similar name, or similar file size
 - **Multiple music folders** — Configure additional music folder locations in Settings; paths are searched in order when resolving track files
 - **Exclude folders from search** — Skip specific folders (e.g. backup directories) when searching for broken track paths
-- **Size tolerance setting** — Adjustable slider (0–10%) to control how strictly file sizes must match when fixing broken paths
+- **Size tolerance setting** — Adjustable slider (0–10%, 0.5% steps) to control how strictly file sizes must match when fixing broken paths; 0% matches exact size only
 - **Configurable music drive** — Set the root drive/path for audio files in Options > Audio (default D:\)
 - **Camelot key notation** — Toggle between standard and Camelot wheel key display with rainbow coloring
 - **Key sorting** — Sort by musical key using Camelot wheel order

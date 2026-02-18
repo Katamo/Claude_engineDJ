@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.6.0] - 2026-02-18
+
+### Added
+
+- **Folders view** — new tab-based navigation (Playlists / Folders) to browse audio files directly from the filesystem
+- **Folder tree navigation** — hierarchical folder tree in the sidebar built from configured music folders, with track counts per folder
+- **FileTable component** — dedicated lightweight table for folder files with column sorting, resizing, reorder, visibility toggle, and audio playback
+- Folder search filter in sidebar to find folders by name
+- "All Tracks" option in folders view to list all files across configured music folders
+- Filesystem scanning of configured music folders (reads actual files on disk, not database paths)
+
+### Fixed
+
+- IPC structured clone errors when passing Vue reactive proxy objects (musicFolders, musicDrive) across the IPC bridge
+
 ## [0.5.0] - 2026-02-18
 
 ### Added

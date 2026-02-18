@@ -28,6 +28,8 @@ contextBridge.exposeInMainWorld('api', {
   getWaveforms: (trackIds) => ipcRenderer.invoke('db:getWaveforms', trackIds),
   checkFilePaths: (data) => ipcRenderer.invoke('db:checkFilePaths', data),
   findMatchingFiles: (data) => ipcRenderer.invoke('db:findMatchingFiles', data),
+  scanMusicFolders: (data) => ipcRenderer.invoke('db:scanMusicFolders', data),
+  getTracksByFolder: (folderPath) => ipcRenderer.invoke('db:getTracksByFolder', folderPath),
   selectMusicFolder: () => ipcRenderer.invoke('config:selectMusicFolder'),
   loadAudio: (filePath) => ipcRenderer.invoke('audio:load', filePath)
 })

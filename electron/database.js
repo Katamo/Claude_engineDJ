@@ -182,6 +182,109 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
     `)
   })
 
+  const AUDIO_EXTENSIONS = new Set(['.mp3', '.flac', '.wav', '.aac', '.m4a', '.ogg', '.wma', '.aiff'])
+  const SYSTEM_DIRS = new Set(['$RECYCLE.BIN', 'System Volume Information'])
+
+  function scanDirForFolders(dir, results) {
+    let entries
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true })
+    } catch (e) { return 0 }
+
+    let audioCount = 0
+    const subdirs = []
+    for (const entry of entries) {
+      if (entry.isFile()) {
+        if (AUDIO_EXTENSIONS.has(path.extname(entry.name).toLowerCase())) audioCount++
+      } else if (entry.isDirectory() && !SYSTEM_DIRS.has(entry.name)) {
+        subdirs.push(path.join(dir, entry.name))
+      }
+    }
+
+    let childCount = 0
+    for (const sub of subdirs) {
+      childCount += scanDirForFolders(sub, results)
+    }
+
+    if (audioCount > 0) {
+      results.push({ path: dir, count: audioCount })
+    }
+    return audioCount + childCount
+  }
+
+  ipcMain.handle('db:scanMusicFolders', async (_event, data) => {
+    const { musicDrive, musicFolders } = data || {}
+    // Only scan configured musicFolders, not the entire drive
+    const roots = (Array.isArray(musicFolders) ? musicFolders : []).filter(r => r)
+    // If no music folders configured, scan first-level subdirs of musicDrive
+    if (!roots.length && musicDrive) {
+      const driveResolved = path.resolve(musicDrive)
+      try {
+        const entries = fs.readdirSync(driveResolved, { withFileTypes: true })
+        for (const entry of entries) {
+          if (entry.isDirectory() && !SYSTEM_DIRS.has(entry.name)) {
+            roots.push(path.join(driveResolved, entry.name))
+          }
+        }
+      } catch (e) { /* skip */ }
+    }
+    const results = []
+    for (const root of roots) {
+      const resolved = path.resolve(root)
+      scanDirForFolders(resolved, results)
+    }
+    // Ensure plain cloneable objects for IPC
+    return results.map(r => ({ path: String(r.path), count: Number(r.count) }))
+  })
+
+  ipcMain.handle('db:getTracksByFolder', async (_event, folderPath) => {
+    const resolved = path.resolve(folderPath)
+    let entries
+    try {
+      entries = fs.readdirSync(resolved, { withFileTypes: true })
+    } catch (e) { return [] }
+
+    const results = []
+    let id = 1
+    for (const entry of entries) {
+      if (!entry.isFile()) continue
+      const ext = path.extname(entry.name).toLowerCase()
+      if (!AUDIO_EXTENSIONS.has(ext)) continue
+      const fullPath = path.join(resolved, entry.name)
+      let fileSize = 0
+      try {
+        fileSize = fs.statSync(fullPath).size
+      } catch (e) { /* skip */ }
+      results.push({
+        trackId: id,
+        entityId: id,
+        filename: String(entry.name),
+        filePath: String(resolved),
+        title: String(path.basename(entry.name, ext)),
+        fileType: String(ext.replace('.', '')),
+        fileSize: Number(fileSize),
+        artist: '',
+        album: '',
+        genre: '',
+        bpm: null,
+        bpmAnalyzed: null,
+        key: null,
+        rating: null,
+        length: null,
+        year: null,
+        label: '',
+        comment: '',
+        composer: '',
+        remixer: '',
+        bitrate: null,
+        dateAdded: null,
+        timeLastPlayed: null
+      })
+      id++
+    }
+    return results
+  })
+
   ipcMain.handle('db:getPlaylists', async () => {
     await ensureInit()
     return queryAll('SELECT id, title, parentListId, nextListId, lastEditTime, isPersisted, isExplicitlyExported FROM Playlist ORDER BY id')
