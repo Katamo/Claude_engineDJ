@@ -4,7 +4,7 @@ import Sidebar from './components/Sidebar.vue'
 import TrackTable from './components/TrackTable.vue'
 import StatusBar from './components/StatusBar.vue'
 import SettingsView from './components/SettingsView.vue'
-import { DEFAULT_MUSIC_DRIVE, DEFAULT_MUSIC_FOLDERS, DEFAULT_KEY_NOTATION, DEFAULT_DB_FILE } from './constants'
+import { DEFAULT_MUSIC_DRIVE, DEFAULT_MUSIC_FOLDERS, DEFAULT_EXCLUDE_FOLDERS, DEFAULT_KEY_NOTATION, DEFAULT_DB_FILE } from './constants'
 
 const playlists = ref([])
 const databases = ref([])
@@ -18,6 +18,7 @@ const showSettings = ref(false)
 const keyNotation = ref(DEFAULT_KEY_NOTATION)
 const musicDrive = ref(DEFAULT_MUSIC_DRIVE)
 const musicFolders = ref([...DEFAULT_MUSIC_FOLDERS])
+const excludeFolders = ref([...DEFAULT_EXCLUDE_FOLDERS])
 
 async function loadData() {
   try {
@@ -133,6 +134,7 @@ async function loadConfig() {
   keyNotation.value = config.keyNotation || DEFAULT_KEY_NOTATION
   musicDrive.value = config.musicDrive || DEFAULT_MUSIC_DRIVE
   musicFolders.value = Array.isArray(config.musicFolders) ? config.musicFolders : [...DEFAULT_MUSIC_FOLDERS]
+  excludeFolders.value = Array.isArray(config.excludeFolders) ? config.excludeFolders : [...DEFAULT_EXCLUDE_FOLDERS]
 }
 
 async function onConfigChanged() {
@@ -197,7 +199,7 @@ onMounted(async () => {
             <h2>Library</h2>
             <div class="subtitle">Select a playlist from the sidebar to view its tracks</div>
           </div>
-          <TrackTable :tracks="tracks" :loading="loading" :hasPlaylist="!!selectedPlaylist" :listId="selectedPlaylist?.id" :keyNotation="keyNotation" :musicDrive="musicDrive" :musicFolders="musicFolders" @tracks-updated="selectPlaylist(selectedPlaylist)" />
+          <TrackTable :tracks="tracks" :loading="loading" :hasPlaylist="!!selectedPlaylist" :listId="selectedPlaylist?.id" :keyNotation="keyNotation" :musicDrive="musicDrive" :musicFolders="musicFolders" :excludeFolders="excludeFolders" @tracks-updated="selectPlaylist(selectedPlaylist)" />
         </div>
       </div>
     </div>

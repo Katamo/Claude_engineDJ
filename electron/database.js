@@ -527,10 +527,14 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
   })
 
   ipcMain.handle('db:findMatchingFiles', async (_event, data) => {
-    const { musicDrive, musicFolders, filename, fileType, bitrate, length: trackLength } = data || {}
+    const { musicDrive, musicFolders, excludeFolders, filename, fileType, bitrate, length: trackLength } = data || {}
     if (!filename) return []
     const roots = [musicDrive || '', ...(Array.isArray(musicFolders) ? musicFolders : [])]
       .filter(r => r)
+    // Normalize excluded folders for comparison
+    const excluded = (Array.isArray(excludeFolders) ? excludeFolders : [])
+      .filter(r => r)
+      .map(f => path.resolve(f).toLowerCase())
     const target = filename.toLowerCase()
     const targetExt = path.extname(target).toLowerCase()
     const targetStem = path.basename(target, targetExt).toLowerCase()
@@ -547,10 +551,13 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
       } catch (e) { continue }
       for (const entry of entries) {
         if (!entry.isFile()) continue
+        // Skip files inside excluded folders
+        const dir = entry.parentPath || entry.path || ''
+        const dirResolved = path.resolve(dir).toLowerCase()
+        if (excluded.some(ex => dirResolved === ex || dirResolved.startsWith(ex + path.sep))) continue
         const entryName = entry.name.toLowerCase()
         const entryExt = path.extname(entryName).toLowerCase()
         const entryStem = path.basename(entryName, entryExt).toLowerCase()
-        const dir = entry.parentPath || entry.path || ''
         const fullPath = path.join(dir, entry.name)
         if (seen.has(fullPath)) continue
 

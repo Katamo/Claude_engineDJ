@@ -2,7 +2,7 @@
 import { ref, reactive, computed, nextTick, watch, onMounted, onUnmounted } from 'vue'
 import EditTrackDialog from './EditTrackDialog.vue'
 import WaveformPreview from './WaveformPreview.vue'
-import { DEFAULT_MUSIC_DRIVE, DEFAULT_MUSIC_FOLDERS, DEFAULT_KEY_NOTATION, KEY_NOTATION_CAMELOT } from '../constants'
+import { DEFAULT_MUSIC_DRIVE, DEFAULT_MUSIC_FOLDERS, DEFAULT_EXCLUDE_FOLDERS, DEFAULT_KEY_NOTATION, KEY_NOTATION_CAMELOT } from '../constants'
 
 const props = defineProps({
   tracks: Array,
@@ -11,7 +11,8 @@ const props = defineProps({
   listId: Number,
   keyNotation: { type: String, default: DEFAULT_KEY_NOTATION },
   musicDrive: { type: String, default: DEFAULT_MUSIC_DRIVE },
-  musicFolders: { type: Array, default: () => [...DEFAULT_MUSIC_FOLDERS] }
+  musicFolders: { type: Array, default: () => [...DEFAULT_MUSIC_FOLDERS] },
+  excludeFolders: { type: Array, default: () => [...DEFAULT_EXCLUDE_FOLDERS] }
 })
 
 const emit = defineEmits(['tracks-updated'])
@@ -238,6 +239,7 @@ async function startFixBrokenPath() {
     const results = await window.api.findMatchingFiles({
       musicDrive: String(props.musicDrive || DEFAULT_MUSIC_DRIVE),
       musicFolders: (props.musicFolders || DEFAULT_MUSIC_FOLDERS).map(String),
+      excludeFolders: (props.excludeFolders || DEFAULT_EXCLUDE_FOLDERS).map(String),
       filename: String(track.filename || ''),
       fileType: String(track.fileType || ''),
       bitrate: Number(track.bitrate) || 0,
