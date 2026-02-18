@@ -527,27 +527,82 @@ function registerDatabaseHandlers(ipcMain, dbPath) {
   })
 
   ipcMain.handle('db:findMatchingFiles', async (_event, data) => {
-    const { musicDrive, musicFolders, filename } = data || {}
+    const { musicDrive, musicFolders, filename, fileType, bitrate, length: trackLength } = data || {}
     if (!filename) return []
     const roots = [musicDrive || '', ...(Array.isArray(musicFolders) ? musicFolders : [])]
       .filter(r => r)
     const target = filename.toLowerCase()
+    const targetExt = path.extname(target).toLowerCase()
+    const targetStem = path.basename(target, targetExt).toLowerCase()
+    // Estimate file size from bitrate (kbps) and length (seconds)
+    const estimatedSize = (bitrate && trackLength) ? (bitrate * 1000 / 8) * trackLength : 0
     const results = []
+    const seen = new Set()
+
     for (const root of roots) {
       const rootDir = path.resolve(root)
+      let entries
       try {
-        const entries = fs.readdirSync(rootDir, { withFileTypes: true, recursive: true })
-        for (const entry of entries) {
-          if (!entry.isFile()) continue
-          if (entry.name.toLowerCase() !== target) continue
-          // entry.parentPath or entry.path contains the directory (Node 20+)
-          const dir = entry.parentPath || entry.path || ''
-          const fullPath = path.join(dir, entry.name)
-          const relativePath = path.relative(rootDir, fullPath)
-          results.push({ fullPath, relativePath, root })
+        entries = fs.readdirSync(rootDir, { withFileTypes: true, recursive: true })
+      } catch (e) { continue }
+      for (const entry of entries) {
+        if (!entry.isFile()) continue
+        const entryName = entry.name.toLowerCase()
+        const entryExt = path.extname(entryName).toLowerCase()
+        const entryStem = path.basename(entryName, entryExt).toLowerCase()
+        const dir = entry.parentPath || entry.path || ''
+        const fullPath = path.join(dir, entry.name)
+        if (seen.has(fullPath)) continue
+
+        // Match type: exact, similar name, or similar size
+        let matchType = null
+        if (entryName === target) {
+          matchType = 'exact'
+        } else if (entryExt === targetExt) {
+          // Similar filename: stem contains the other or differs by few chars
+          if (entryStem.includes(targetStem) || targetStem.includes(entryStem)) {
+            matchType = 'similar name'
+          } else {
+            // Levenshtein-like: check if stems differ by at most ~20% of length
+            const maxLen = Math.max(entryStem.length, targetStem.length)
+            if (maxLen > 0 && maxLen <= 300) {
+              let dist = 0
+              const a = targetStem, b = entryStem
+              // Simple character diff (not full Levenshtein, but fast)
+              const longer = a.length >= b.length ? a : b
+              const shorter = a.length < b.length ? a : b
+              dist = longer.length - shorter.length
+              for (let i = 0; i < shorter.length; i++) {
+                if (shorter[i] !== longer[i]) dist++
+              }
+              if (dist <= Math.ceil(maxLen * 0.2)) {
+                matchType = 'similar name'
+              }
+            }
+          }
+          // Check file size similarity if we have an estimate
+          if (!matchType && estimatedSize > 0) {
+            try {
+              const stat = fs.statSync(fullPath)
+              const sizeDiff = Math.abs(stat.size - estimatedSize) / estimatedSize
+              if (sizeDiff <= 0.1) {
+                matchType = 'similar size'
+              }
+            } catch (e) { /* skip */ }
+          }
         }
-      } catch (e) { /* root dir may not exist */ }
+
+        if (!matchType) continue
+        seen.add(fullPath)
+        const relativePath = path.relative(rootDir, fullPath)
+        let fileSize = null
+        try { fileSize = fs.statSync(fullPath).size } catch (e) { /* skip */ }
+        results.push({ fullPath, relativePath, root, matchType, fileSize })
+      }
     }
+    // Sort: exact first, then similar name, then similar size
+    const order = { exact: 0, 'similar name': 1, 'similar size': 2 }
+    results.sort((a, b) => (order[a.matchType] ?? 9) - (order[b.matchType] ?? 9))
     return results
   })
 

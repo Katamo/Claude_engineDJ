@@ -238,7 +238,10 @@ async function startFixBrokenPath() {
     const results = await window.api.findMatchingFiles({
       musicDrive: String(props.musicDrive || DEFAULT_MUSIC_DRIVE),
       musicFolders: (props.musicFolders || DEFAULT_MUSIC_FOLDERS).map(String),
-      filename: String(track.filename || '')
+      filename: String(track.filename || ''),
+      fileType: String(track.fileType || ''),
+      bitrate: Number(track.bitrate) || 0,
+      length: Number(track.length) || 0
     })
     fixPathDialog.value.results = results || []
   } catch (e) {
@@ -263,6 +266,13 @@ async function applyFixedPath(result) {
 
 function closeFixPathDialog() {
   fixPathDialog.value = { visible: false, track: null, results: [], loading: false }
+}
+
+function formatFileSize(bytes) {
+  if (!bytes) return ''
+  if (bytes < 1024) return bytes + ' B'
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
 }
 
 // --- Waveform data ---
@@ -1023,6 +1033,10 @@ onUnmounted(() => {
                 @click="applyFixedPath(result)"
                 :title="result.fullPath"
               >
+                <div class="fix-path-item-header">
+                  <span class="fix-path-match-type" :class="'match-' + result.matchType?.replace(' ', '-')">{{ result.matchType }}</span>
+                  <span v-if="result.fileSize" class="fix-path-filesize">{{ formatFileSize(result.fileSize) }}</span>
+                </div>
                 <span class="fix-path-fullpath">{{ result.fullPath }}</span>
               </div>
             </div>
